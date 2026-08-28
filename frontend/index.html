@@ -553,11 +553,10 @@
             <!-- ==================================================
                  CPU GRAPH
 
-                 JavaScript makes this canvas wider as
-                 more readings are received.
-
-                 The surrounding div provides the
-                 horizontal scrollbar.
+                 The chart always shows a fixed-size
+                 window of CHART_WINDOW_SIZE readings.
+                 Use the slider below to scroll back
+                 through every reading collected so far.
             =================================================== -->
 
             <div class="cpu-chart-container">
@@ -573,21 +572,96 @@
 
 
             <!-- ==================================================
-                 LIVE DATA STATUS
+                 STOCK-STYLE CHART RANGE SCROLLBAR
             =================================================== -->
 
-            <span class="live">
+            <div class="stock-scrollbar-wrapper">
 
-                Linux data received
+                <button
+                    type="button"
+                    class="stock-scrollbar-arrow arrow-left"
+                    data-role="scroll-left-btn"
+                    aria-label="Scroll Left"
+                >
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                        <polygon points="16,4 6,12 16,20"/>
+                    </svg>
+                </button>
 
-            </span>
+                <div
+                    class="stock-scrollbar-track"
+                    data-role="stock-scrollbar-track"
+                >
+                    <div
+                        class="stock-scrollbar-thumb"
+                        data-role="stock-scrollbar-thumb"
+                    ></div>
+                </div>
+
+                <button
+                    type="button"
+                    class="stock-scrollbar-arrow arrow-right"
+                    data-role="scroll-right-btn"
+                    aria-label="Scroll Right"
+                >
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                        <polygon points="8,4 18,12 8,20"/>
+                    </svg>
+                </button>
+
+            </div>
 
 
+            <!-- ==================================================
+                 CHART LEGEND (MATCHING SCREENSHOT)
+            =================================================== -->
 
-            <div class="refresh">
+            <div class="chart-legend-container">
 
-                Data automatically refreshes
-                every 5 seconds.
+                <div class="legend-item">
+                    <span class="legend-circle cpu-circle"></span>
+                    <span class="legend-label">CPU Utilization</span>
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-circle warning-circle"></span>
+                    <span class="legend-label">Warning 50%</span>
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-circle critical-circle"></span>
+                    <span class="legend-label">Critical 80%</span>
+                </div>
+
+            </div>
+
+
+            <!-- ==================================================
+                 READINGS & LIVE STATUS FOOTER CARD
+            =================================================== -->
+
+            <div class="chart-footer-status-box">
+
+                <div class="footer-reading-info">
+                    <span class="radio-indicator">
+                        <span class="radio-dot"></span>
+                    </span>
+                    <span
+                        class="footer-range-text"
+                        data-role="cpu-scrubber-range"
+                    >
+                        Loading readings...
+                    </span>
+                </div>
+
+                <button
+                    type="button"
+                    class="live-status-pill is-live"
+                    data-role="cpu-live-btn"
+                >
+                    <span class="live-status-dot"></span>
+                    Live
+                </button>
 
             </div>
 

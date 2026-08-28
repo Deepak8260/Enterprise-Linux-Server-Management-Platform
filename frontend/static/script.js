@@ -95,6 +95,26 @@ let cpuChart = null;
 let cpuRefreshTimer = null;
 
 
+/*
+ * Index into cpuHistory where the
+ * currently visible chart window starts.
+ */
+
+let chartWindowStart = 0;
+
+
+/*
+ * When true, the chart window automatically
+ * follows the newest reading (default).
+ *
+ * Turned off when the user drags the
+ * scrubber slider away from the live edge,
+ * turned back on by the "Live" button.
+ */
+
+let followLive = true;
+
+
 /* ==========================================================
    CONSTANTS
 ========================================================== */
@@ -120,6 +140,31 @@ const PIXELS_PER_POINT = 100;
  */
 
 const MIN_CHART_WIDTH = 1100;
+
+
+/*
+ * The graph only DRAWS the most recent
+ * CHART_WINDOW_SIZE readings so it always
+ * fits inside its container.
+ *
+ * Older readings are NOT deleted from
+ * cpuHistory -- they still count towards
+ * the statistics cards (average, peak,
+ * total readings).
+ */
+
+const CHART_WINDOW_SIZE = 10;
+
+
+/*
+ * How many past readings to ask the server
+ * for when the CPU page loads. The server
+ * is the source of truth now -- readings
+ * live in logs/cpu/*.jsonl on disk, NOT in
+ * the browser.
+ */
+
+const MAX_FETCHED_READINGS = 2000;
 
 
 /* ==========================================================
@@ -151,6 +196,16 @@ function destroyCpuChart() {
 
         cpuChart = null;
     }
+
+
+    /*
+     * Reset the scrubber so returning to
+     * this page always starts on "Live".
+     */
+
+    chartWindowStart = 0;
+
+    followLive = true;
 }
 
 
@@ -262,7 +317,7 @@ function renderDashboard() {
    CPU PAGE
 ========================================================== */
 
-function renderCpuPage() {
+async function renderCpuPage() {
 
     clearCpuRefreshTimer();
 
@@ -274,11 +329,28 @@ function renderCpuPage() {
 
 
     /*
+     * Load every previously logged reading
+     * from the server (logs/cpu/*.jsonl)
+     * before drawing anything.
+     */
+
+    await loadCpuHistoryFromServer();
+
+
+    /*
      * Display the existing history
-     * immediately if available.
+     * immediately.
      */
 
     createCpuChart();
+
+
+    /*
+     * Wire up the history scrubber
+     * (slider + Live button).
+     */
+
+    wireCpuChartScrubber();
 
 
     /*
@@ -439,7 +511,8 @@ async function loadCpuUsage() {
          */
 
         addCpuReading(
-            safeCpu
+            safeCpu,
+            data.timestamp
         );
 
 
@@ -502,13 +575,19 @@ async function loadCpuUsage() {
    ADD CPU READING
 ========================================================== */
 
-function addCpuReading(cpu) {
+function addCpuReading(cpu, timestamp) {
 
     /*
-     * Store the CPU value together
-     * with the exact time it was received.
+     * Store the CPU value together with
+     * the exact time it was received.
      *
-     * NOTHING IS DELETED.
+     * The server already wrote this same
+     * reading to logs/cpu/*.jsonl when we
+     * called /api/cpu, so nothing needs to
+     * be saved from the browser here.
+     *
+     * NOTHING IS DELETED from this
+     * in-memory list either.
      */
 
     cpuHistory.push({
@@ -517,9 +596,80 @@ function addCpuReading(cpu) {
             cpu,
 
         time:
-            new Date()
+            timestamp
+                ? new Date(timestamp)
+                : new Date()
 
     });
+}
+
+
+/* ==========================================================
+   CPU HISTORY (SERVER-BACKED)
+
+   Readings live on disk on the server
+   (logs/cpu/*.jsonl), not in the browser.
+   This restores them whenever the CPU
+   page is opened -- including after a
+   refresh, a server restart, or from a
+   completely different browser.
+========================================================== */
+
+async function loadCpuHistoryFromServer() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/cpu/history?limit=" +
+                    MAX_FETCHED_READINGS
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                `History request failed with status ${response.status}`
+            );
+        }
+
+
+        const data =
+            await response.json();
+
+        const readings =
+            Array.isArray(data.readings)
+                ? data.readings
+                : [];
+
+        cpuHistory =
+            readings
+                .map(
+                    item => ({
+
+                        value:
+                            Number(item.cpu_usage),
+
+                        time:
+                            new Date(item.timestamp)
+
+                    })
+                )
+                .filter(
+                    item =>
+                        Number.isFinite(item.value) &&
+                        !isNaN(item.time.getTime())
+                );
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Could not load CPU history from server:",
+            error
+        );
+
+        cpuHistory = [];
+    }
 }
 
 
@@ -654,37 +804,61 @@ function resizeChartCanvas(
     canvas
 ) {
 
-    if (!canvas) {
+    /*
+     * The graph is responsive now: Chart.js
+     * resizes the canvas to fill its container
+     * automatically, so no manual width/height
+     * calculation is needed here anymore.
+     *
+     * Kept as a no-op so existing call sites
+     * do not need to change.
+     */
 
-        return;
+    return;
+}
+
+
+/* ==========================================================
+   CHART WINDOW
+========================================================== */
+
+function getMaxChartWindowStart() {
+
+    return Math.max(
+        0,
+        cpuHistory.length -
+            CHART_WINDOW_SIZE
+    );
+}
+
+
+function getChartWindow() {
+
+    const maxStart =
+        getMaxChartWindowStart();
+
+
+    if (followLive) {
+
+        chartWindowStart =
+            maxStart;
+    }
+
+    else if (
+        chartWindowStart >
+        maxStart
+    ) {
+
+        chartWindowStart =
+            maxStart;
     }
 
 
-    /*
-     * Every reading gets horizontal space.
-     *
-     * Example:
-     *
-     * 10 readings  = 1100px minimum
-     * 50 readings  = 5000px
-     * 100 readings = 10000px
-     */
-
-    const calculatedWidth =
-        Math.max(
-            MIN_CHART_WIDTH,
-            cpuHistory.length *
-                PIXELS_PER_POINT
-        );
-
-
-    canvas.style.width =
-        calculatedWidth +
-        "px";
-
-
-    canvas.style.height =
-        "400px";
+    return cpuHistory.slice(
+        chartWindowStart,
+        chartWindowStart +
+            CHART_WINDOW_SIZE
+    );
 }
 
 
@@ -701,7 +875,7 @@ function createCpuDataset() {
 
 
         data:
-            cpuHistory.map(
+            getChartWindow().map(
                 item =>
                     item.value
             ),
@@ -770,7 +944,7 @@ function createThresholdDataset(
 
 
         data:
-            cpuHistory.map(
+            getChartWindow().map(
                 () => value
             ),
 
@@ -878,7 +1052,7 @@ function createCpuChart() {
                 data: {
 
                     labels:
-                        cpuHistory.map(
+                        getChartWindow().map(
                             item =>
                                 item.time
                         ),
@@ -910,7 +1084,7 @@ function createCpuChart() {
                 options: {
 
                     responsive:
-                        false,
+                        true,
 
 
                     maintainAspectRatio:
@@ -933,35 +1107,7 @@ function createCpuChart() {
                         legend: {
 
                             display:
-                                true,
-
-                            position:
-                                "bottom",
-
-                            align:
-                                "start",
-
-                            labels: {
-
-                                usePointStyle:
-                                    true,
-
-                                boxWidth:
-                                    25,
-
-                                padding:
-                                    25,
-
-                                color:
-                                    "#667085",
-
-                                font: {
-
-                                    size:
-                                        12
-                                }
-
-                            }
+                                false
 
                         },
 
@@ -999,6 +1145,13 @@ function createCpuChart() {
                             displayColors:
                                 false,
 
+                            filter:
+                                function (
+                                    tooltipItem
+                                ) {
+                                    return tooltipItem.datasetIndex === 0;
+                                },
+
 
                             callbacks: {
 
@@ -1013,7 +1166,7 @@ function createCpuChart() {
 
 
                                         const point =
-                                            cpuHistory[index];
+                                            getChartWindow()[index];
 
 
                                         if (
@@ -1040,7 +1193,7 @@ function createCpuChart() {
 
 
                                         const point =
-                                            cpuHistory[index];
+                                            getChartWindow()[index];
 
 
                                         if (
@@ -1121,7 +1274,15 @@ function createCpuChart() {
 
 
                                 autoSkip:
-                                    false,
+                                    true,
+
+
+                                autoSkipPadding:
+                                    20,
+
+
+                                maxTicksLimit:
+                                    8,
 
 
                                 maxRotation:
@@ -1150,7 +1311,7 @@ function createCpuChart() {
                                     ) {
 
                                         const point =
-                                            cpuHistory[index];
+                                            getChartWindow()[index];
 
 
                                         if (
@@ -1234,6 +1395,9 @@ function createCpuChart() {
 
             }
         );
+
+
+    updateChartScrollbarUI();
 }
 
 
@@ -1278,74 +1442,537 @@ function updateCpuChart() {
 
 
     /*
-     * Update ALL timestamps.
+     * Redraw with whatever window
+     * (live or scrolled-back) is
+     * currently active.
      */
 
+    renderChartWindow();
+
+
+    updateChartScrollbarUI();
+}
+
+
+/* ==========================================================
+   CHART SCRUBBER (STOCK-STYLE RANGE SCROLLBAR)
+========================================================== */
+
+let isDraggingThumb = false;
+let dragStartX = 0;
+let dragStartWindowIndex = 0;
+
+function updateChartScrubberLabel(
+    windowPoints
+) {
+
+    const labelEl =
+        contentEl.querySelector(
+            '[data-role="cpu-scrubber-range"]'
+        );
+
+    if (!labelEl) {
+
+        return;
+    }
+
+
+    if (
+        !windowPoints ||
+        windowPoints.length === 0
+    ) {
+
+        labelEl.textContent =
+            "No data yet";
+
+        return;
+    }
+
+
+    const first =
+        windowPoints[0].time;
+
+    const last =
+        windowPoints[
+            windowPoints.length - 1
+        ].time;
+
+    labelEl.textContent =
+        formatTime(first) +
+        " – " +
+        formatTime(last) +
+        " (" +
+        cpuHistory.length +
+        " readings total)";
+}
+
+
+function renderChartWindow() {
+
+    if (!cpuChart) {
+
+        return;
+    }
+
+
+    const windowPoints =
+        getChartWindow();
+
     cpuChart.data.labels =
-        cpuHistory.map(
+        windowPoints.map(
             item =>
                 item.time
         );
 
-
-    /*
-     * Update ALL CPU values.
-     */
-
     cpuChart.data.datasets[0].data =
-        cpuHistory.map(
+        windowPoints.map(
             item =>
                 item.value
         );
 
-
-    /*
-     * Update warning line.
-     */
-
     cpuChart.data.datasets[1].data =
-        cpuHistory.map(
+        windowPoints.map(
             () =>
                 WARNING_THRESHOLD
         );
 
-
-    /*
-     * Update critical line.
-     */
-
     cpuChart.data.datasets[2].data =
-        cpuHistory.map(
+        windowPoints.map(
             () =>
                 CRITICAL_THRESHOLD
         );
-
-
-    /*
-     * Redraw.
-     */
 
     cpuChart.update(
         "none"
     );
 
+    updateChartScrubberLabel(
+        windowPoints
+    );
+}
 
-    /*
-     * Automatically move the scrollbar
-     * to the newest reading.
-     */
 
-    const container =
+function updateChartScrollbarUI() {
+
+    const thumbEl =
+        contentEl.querySelector(
+            '[data-role="stock-scrollbar-thumb"]'
+        );
+
+    const trackEl =
+        contentEl.querySelector(
+            '[data-role="stock-scrollbar-track"]'
+        );
+
+    const liveBtn =
+        contentEl.querySelector(
+            '[data-role="cpu-live-btn"]'
+        );
+
+    const totalReadings =
+        cpuHistory.length;
+
+    const maxStart =
+        getMaxChartWindowStart();
+
+
+    if (thumbEl && trackEl) {
+
+        if (totalReadings <= CHART_WINDOW_SIZE) {
+
+            thumbEl.style.width = "100%";
+
+            thumbEl.style.left = "0%";
+
+        } else {
+
+            const ratio =
+                CHART_WINDOW_SIZE / totalReadings;
+
+            const thumbWidthPercent =
+                Math.max(8, Math.min(100, ratio * 100));
+
+            const maxThumbLeftPercent =
+                100 - thumbWidthPercent;
+
+            let currentStart =
+                followLive
+                    ? maxStart
+                    : Math.min(chartWindowStart, maxStart);
+
+            chartWindowStart = currentStart;
+
+            const fraction =
+                maxStart > 0
+                    ? currentStart / maxStart
+                    : 1;
+
+            const thumbLeftPercent =
+                fraction * maxThumbLeftPercent;
+
+            thumbEl.style.width =
+                thumbWidthPercent + "%";
+
+            thumbEl.style.left =
+                thumbLeftPercent + "%";
+
+        }
+
+    }
+
+
+    if (liveBtn) {
+
+        liveBtn.classList.toggle(
+            "is-live",
+            followLive
+        );
+
+    }
+
+
+    updateChartScrubberLabel(
+        getChartWindow()
+    );
+}
+
+
+function goToLiveChartView() {
+
+    followLive = true;
+
+    chartWindowStart =
+        getMaxChartWindowStart();
+
+    renderChartWindow();
+
+    updateChartScrollbarUI();
+}
+
+
+function wireCpuChartScrubber() {
+
+    const thumbEl =
+        contentEl.querySelector(
+            '[data-role="stock-scrollbar-thumb"]'
+        );
+
+    const trackEl =
+        contentEl.querySelector(
+            '[data-role="stock-scrollbar-track"]'
+        );
+
+    const leftBtn =
+        contentEl.querySelector(
+            '[data-role="scroll-left-btn"]'
+        );
+
+    const rightBtn =
+        contentEl.querySelector(
+            '[data-role="scroll-right-btn"]'
+        );
+
+    const liveBtn =
+        contentEl.querySelector(
+            '[data-role="cpu-live-btn"]'
+        );
+
+    const chartContainer =
         contentEl.querySelector(
             ".cpu-chart-container"
         );
 
 
-    if (container) {
+    function startDrag(clientX) {
 
-        container.scrollLeft =
-            container.scrollWidth;
+        isDraggingThumb = true;
+
+        dragStartX = clientX;
+
+        dragStartWindowIndex = chartWindowStart;
+
+        if (thumbEl) {
+
+            thumbEl.classList.add("is-dragging");
+
+        }
+
     }
+
+
+    function onPointerMove(clientX) {
+
+        if (!isDraggingThumb || !trackEl || !thumbEl) {
+
+            return;
+
+        }
+
+        const dx = clientX - dragStartX;
+
+        const trackWidth = trackEl.clientWidth;
+
+        const thumbWidth = thumbEl.clientWidth;
+
+        const usableWidth = trackWidth - thumbWidth;
+
+        if (usableWidth <= 0) {
+
+            return;
+
+        }
+
+
+        const deltaFraction = dx / usableWidth;
+
+        const maxStart = getMaxChartWindowStart();
+
+        let newStart = Math.round(dragStartWindowIndex + deltaFraction * maxStart);
+
+        newStart = Math.max(0, Math.min(newStart, maxStart));
+
+
+        chartWindowStart = newStart;
+
+        followLive = (chartWindowStart >= maxStart);
+
+
+        renderChartWindow();
+
+        updateChartScrollbarUI();
+
+    }
+
+
+    function endDrag() {
+
+        if (isDraggingThumb) {
+
+            isDraggingThumb = false;
+
+            if (thumbEl) {
+
+                thumbEl.classList.remove("is-dragging");
+
+            }
+
+        }
+
+    }
+
+
+    if (thumbEl) {
+
+        thumbEl.addEventListener("mousedown", (e) => {
+
+            e.preventDefault();
+
+            startDrag(e.clientX);
+
+        });
+
+
+        thumbEl.addEventListener("touchstart", (e) => {
+
+            if (e.touches && e.touches.length === 1) {
+
+                startDrag(e.touches[0].clientX);
+
+            }
+
+        }, { passive: true });
+
+    }
+
+
+    window.addEventListener("mousemove", (e) => {
+
+        if (isDraggingThumb) {
+
+            onPointerMove(e.clientX);
+
+        }
+
+    });
+
+
+    window.addEventListener("touchmove", (e) => {
+
+        if (isDraggingThumb && e.touches && e.touches.length === 1) {
+
+            onPointerMove(e.touches[0].clientX);
+
+        }
+
+    }, { passive: true });
+
+
+    window.addEventListener("mouseup", endDrag);
+
+    window.addEventListener("touchend", endDrag);
+
+
+    if (trackEl) {
+
+        trackEl.addEventListener("click", (e) => {
+
+            if (e.target === thumbEl) {
+
+                return;
+
+            }
+
+            const rect = trackEl.getBoundingClientRect();
+
+            const clickX = e.clientX - rect.left;
+
+            const trackWidth = trackEl.clientWidth;
+
+            const thumbWidth = thumbEl ? thumbEl.clientWidth : 0;
+
+            const usableWidth = trackWidth - thumbWidth;
+
+            if (usableWidth <= 0) {
+
+                return;
+
+            }
+
+
+            const targetLeft = clickX - thumbWidth / 2;
+
+            const fraction = Math.max(0, Math.min(1, targetLeft / usableWidth));
+
+            const maxStart = getMaxChartWindowStart();
+
+
+            chartWindowStart = Math.round(fraction * maxStart);
+
+            followLive = (chartWindowStart >= maxStart);
+
+
+            renderChartWindow();
+
+            updateChartScrollbarUI();
+
+        });
+
+    }
+
+
+    if (leftBtn) {
+
+        leftBtn.addEventListener("click", () => {
+
+            if (chartWindowStart > 0) {
+
+                chartWindowStart--;
+
+                followLive = false;
+
+                renderChartWindow();
+
+                updateChartScrollbarUI();
+
+            }
+
+        });
+
+    }
+
+
+    if (rightBtn) {
+
+        rightBtn.addEventListener("click", () => {
+
+            const maxStart = getMaxChartWindowStart();
+
+            if (chartWindowStart < maxStart) {
+
+                chartWindowStart++;
+
+                followLive = (chartWindowStart >= maxStart);
+
+                renderChartWindow();
+
+                updateChartScrollbarUI();
+
+            }
+
+        });
+
+    }
+
+
+    function onWheelScroll(e) {
+
+        /*
+         * ONLY horizontal scrolling (e.deltaX) moves the chart scrollbar.
+         * Ignore vertical top-to-bottom page scrolling (e.deltaY) completely
+         * so the page scrolls up and down normally.
+         */
+
+        if (Math.abs(e.deltaX) < 2) {
+
+            return;
+
+        }
+
+
+        const maxStart = getMaxChartWindowStart();
+
+        if (e.deltaX > 0 && chartWindowStart < maxStart) {
+
+            e.preventDefault();
+
+            chartWindowStart++;
+
+            followLive = (chartWindowStart >= maxStart);
+
+            renderChartWindow();
+
+            updateChartScrollbarUI();
+
+        } else if (e.deltaX < 0 && chartWindowStart > 0) {
+
+            e.preventDefault();
+
+            chartWindowStart--;
+
+            followLive = false;
+
+            renderChartWindow();
+
+            updateChartScrollbarUI();
+
+        }
+
+    }
+
+
+    if (chartContainer) {
+
+        chartContainer.addEventListener("wheel", onWheelScroll, { passive: false });
+
+    }
+
+
+    if (trackEl) {
+
+        trackEl.addEventListener("wheel", onWheelScroll, { passive: false });
+
+    }
+
+
+    if (liveBtn) {
+
+        liveBtn.addEventListener("click", goToLiveChartView);
+
+    }
+
+
+    updateChartScrollbarUI();
+
 }
 
 

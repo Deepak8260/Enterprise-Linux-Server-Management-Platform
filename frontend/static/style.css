@@ -433,13 +433,9 @@ body {
         grid;
 
     grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(
-                245px,
-                1fr
-            )
-        );
+        repeat(auto-fit,
+            minmax(245px,
+                1fr));
 
     gap:
         20px;
@@ -475,12 +471,10 @@ body {
         border-color 0.2s ease;
 
     box-shadow:
-        0 2px 8px rgba(
-            16,
+        0 2px 8px rgba(16,
             24,
             40,
-            0.035
-        );
+            0.035);
 }
 
 
@@ -493,12 +487,10 @@ body {
         #cdd5df;
 
     box-shadow:
-        0 12px 28px rgba(
-            16,
+        0 12px 28px rgba(16,
             24,
             40,
-            0.09
-        );
+            0.09);
 }
 
 
@@ -556,12 +548,10 @@ body {
         30px;
 
     box-shadow:
-        0 5px 18px rgba(
-            16,
+        0 5px 18px rgba(16,
             24,
             40,
-            0.045
-        );
+            0.045);
 }
 
 
@@ -791,61 +781,15 @@ body {
         12px;
 
     /*
-     * THIS ENABLES THE HORIZONTAL SCROLLBAR.
+     * The graph is responsive and always fits
+     * inside this container, so no horizontal
+     * scrolling is needed anymore. This also
+     * fixes the Y-axis labels/legend getting
+     * scrolled out of view.
      */
 
-    overflow-x:
-        auto;
-
-    overflow-y:
+    overflow:
         hidden;
-
-    scrollbar-width:
-        thin;
-
-    scrollbar-color:
-        #b8c2d1 #f1f3f6;
-}
-
-
-/* ============================================================
-   CHROME / EDGE SCROLLBAR
-============================================================ */
-
-.cpu-chart-container::-webkit-scrollbar {
-
-    height:
-        10px;
-}
-
-
-.cpu-chart-container::-webkit-scrollbar-track {
-
-    background:
-        #f1f3f6;
-
-    border-radius:
-        10px;
-}
-
-
-.cpu-chart-container::-webkit-scrollbar-thumb {
-
-    background:
-        #b8c2d1;
-
-    border-radius:
-        10px;
-
-    border:
-        2px solid #f1f3f6;
-}
-
-
-.cpu-chart-container::-webkit-scrollbar-thumb:hover {
-
-    background:
-        #8d99aa;
 }
 
 
@@ -858,15 +802,214 @@ body {
     display:
         block;
 
+    width:
+        100% !important;
+
     height:
-        400px !important;
+        100% !important;
+}
 
-    /*
-     * JavaScript controls width.
-     */
 
-    max-width:
-        none !important;
+/* ============================================================
+   CUSTOM STOCK-STYLE SCROLLBAR & RANGE SCRUBBER
+============================================================ */
+
+.stock-scrollbar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 14px;
+    margin-bottom: 20px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.stock-scrollbar-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 24px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    flex-shrink: 0;
+}
+
+.stock-scrollbar-arrow:hover {
+    background: #e2e8f0;
+    color: #334155;
+    border-color: #cbd5e1;
+}
+
+.stock-scrollbar-arrow:active {
+    background: #cbd5e1;
+}
+
+.stock-scrollbar-track {
+    position: relative;
+    flex: 1;
+    height: 24px;
+    background: #e9ecef;
+    border-radius: 4px;
+    cursor: pointer;
+    overflow: hidden;
+    touch-action: none;
+}
+
+.stock-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #b0b7c3;
+    border-radius: 3px;
+    cursor: grab;
+    transition: background 0.15s ease;
+}
+
+.stock-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.stock-scrollbar-thumb.is-dragging {
+    cursor: grabbing;
+    background: #78889b;
+}
+
+
+/* ============================================================
+   CHART LEGEND (MATCHING SCREENSHOT)
+============================================================ */
+
+.chart-legend-container {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-bottom: 24px;
+    padding-left: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.legend-circle {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    background: transparent;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.legend-circle.cpu-circle {
+    color: #2563eb;
+}
+
+.legend-circle.warning-circle {
+    color: #f59e0b;
+}
+
+.legend-circle.critical-circle {
+    color: #ef4444;
+}
+
+.legend-label {
+    color: #475569;
+}
+
+
+/* ============================================================
+   BOTTOM READINGS & LIVE STATUS CARD (MATCHING SCREENSHOT)
+============================================================ */
+
+.chart-footer-status-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-top: 10px;
+}
+
+.footer-reading-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+}
+
+.radio-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #2563eb;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.radio-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #2563eb;
+}
+
+.live-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.live-status-pill:hover {
+    background: #e2e8f0;
+}
+
+.live-status-pill.is-live {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+
+.live-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #94a3b8;
+}
+
+.live-status-pill.is-live .live-status-dot {
+    background: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
 
@@ -880,10 +1023,8 @@ body {
         grid;
 
     grid-template-columns:
-        repeat(
-            4,
-            1fr
-        );
+        repeat(4,
+            1fr);
 
     gap:
         18px;
@@ -912,12 +1053,10 @@ body {
         20px 22px;
 
     box-shadow:
-        0 3px 12px rgba(
-            16,
+        0 3px 12px rgba(16,
             24,
             40,
-            0.035
-        );
+            0.035);
 }
 
 
@@ -1018,12 +1157,10 @@ body {
         50%;
 
     box-shadow:
-        0 0 0 3px rgba(
-            18,
+        0 0 0 3px rgba(18,
             183,
             106,
-            0.12
-        );
+            0.12);
 }
 
 
@@ -1072,12 +1209,10 @@ body {
         center;
 
     box-shadow:
-        0 5px 18px rgba(
-            16,
+        0 5px 18px rgba(16,
             24,
             40,
-            0.045
-        );
+            0.045);
 }
 
 
@@ -1128,9 +1263,7 @@ body {
    RESPONSIVE
 ============================================================ */
 
-@media (
-    max-width: 1100px
-) {
+@media (max-width: 1100px) {
 
     .content {
 
@@ -1152,17 +1285,13 @@ body {
     .cpu-info-row {
 
         grid-template-columns:
-            repeat(
-                2,
-                1fr
-            );
+            repeat(2,
+                1fr);
     }
 }
 
 
-@media (
-    max-width: 768px
-) {
+@media (max-width: 768px) {
 
     .header {
 
@@ -1267,9 +1396,7 @@ body {
    VERY SMALL SCREENS
 ============================================================ */
 
-@media (
-    max-width: 520px
-) {
+@media (max-width: 520px) {
 
     .sidebar {
 
