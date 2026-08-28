@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Enterprise Linux Server Management Platform
+    </title>
+
+
+    <!-- ======================================================
+         PREMIUM UI STYLES
+    ======================================================= -->
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
+</head>
+
+
+<body>
+
+
+    <!-- ======================================================
+         TOP HEADER
+    ======================================================= -->
+
+    <header class="header">
+
+        <div class="logo">
+            Enterprise Linux Server Management Platform
+        </div>
+
+
+        <div class="status">
+
+            <span class="status-dot"></span>
+
+            Linux Server Online
+
+        </div>
+
+    </header>
+
+
+
+    <!-- ======================================================
+         MAIN APPLICATION LAYOUT
+    ======================================================= -->
+
+    <div class="layout">
+
+
+        <!-- ==================================================
+             LEFT SIDEBAR
+        =================================================== -->
+
+        <aside class="sidebar">
+
+
+            <div class="section-title">
+                Management
+            </div>
+
+
+            <!-- Dashboard -->
+
+            <button
+                class="menu-item active"
+                data-page="dashboard"
+            >
+                Dashboard
+            </button>
+
+
+
+            <!-- ==================================================
+                 SYSTEM HEALTH
+            =================================================== -->
+
+            <button
+                class="menu-item"
+                id="health-toggle"
+            >
+                System Health
+            </button>
+
+
+            <div
+                id="health-menu"
+                class="submenu"
+            >
+
+                <button
+                    data-page="cpu"
+                >
+                    CPU Usage
+                </button>
+
+
+                <button
+                    data-page="development"
+                    data-feature="Memory Usage"
+                >
+                    Memory Usage
+                </button>
+
+
+                <button
+                    data-page="development"
+                    data-feature="Disk Usage"
+                >
+                    Disk Usage
+                </button>
+
+
+                <button
+                    data-page="development"
+                    data-feature="Load Average"
+                >
+                    Load Average
+                </button>
+
+
+                <button
+                    data-page="development"
+                    data-feature="Uptime"
+                >
+                    Uptime
+                </button>
+
+            </div>
+
+
+
+            <!-- ==================================================
+                 OTHER MANAGEMENT MODULES
+            =================================================== -->
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Users & Groups"
+            >
+                Users & Groups
+            </button>
+
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Service Management"
+            >
+                Services
+            </button>
+
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Process Manager"
+            >
+                Processes
+            </button>
+
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Storage & Filesystem"
+            >
+                Storage
+            </button>
+
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Log Analyzer"
+            >
+                Logs
+            </button>
+
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Security Audit"
+            >
+                Security
+            </button>
+
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Backup Manager"
+            >
+                Backups
+            </button>
+
+
+            <button
+                class="menu-item"
+                data-page="development"
+                data-feature="Report Generator"
+            >
+                Reports
+            </button>
+
+
+        </aside>
+
+
+
+        <!-- ==================================================
+             MAIN CONTENT AREA
+
+             JavaScript dynamically places pages here.
+        =================================================== -->
+
+        <main
+            id="content"
+            class="content"
+        ></main>
+
+
+    </div>
+
+
+
+    <!-- ======================================================
+         DASHBOARD TEMPLATE
+
+         JavaScript clones this template when the user
+         selects Dashboard.
+    ======================================================= -->
+
+    <template id="template-dashboard">
+
+
+        <h1 class="page-title">
+            Dashboard
+        </h1>
+
+
+        <p class="page-description">
+            Enterprise Linux server administration and
+            monitoring platform.
+        </p>
+
+
+
+        <div class="cards">
+
+
+            <!-- System Health -->
+
+            <div
+                class="card"
+                data-page="cpu"
+            >
+
+                <h3>
+                    System Health
+                </h3>
+
+                <p>
+                    Monitor CPU, memory, disk,
+                    load and uptime.
+                </p>
+
+            </div>
+
+
+
+            <!-- Users -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Users & Groups"
+            >
+
+                <h3>
+                    Users & Groups
+                </h3>
+
+                <p>
+                    Manage Linux users, groups
+                    and sudo privileges.
+                </p>
+
+            </div>
+
+
+
+            <!-- Services -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Service Management"
+            >
+
+                <h3>
+                    Services
+                </h3>
+
+                <p>
+                    Start, stop and restart
+                    Linux services.
+                </p>
+
+            </div>
+
+
+
+            <!-- Processes -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Process Manager"
+            >
+
+                <h3>
+                    Processes
+                </h3>
+
+                <p>
+                    Monitor and manage
+                    Linux processes.
+                </p>
+
+            </div>
+
+
+
+            <!-- Storage -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Storage & Filesystem"
+            >
+
+                <h3>
+                    Storage
+                </h3>
+
+                <p>
+                    Monitor filesystems
+                    and disk usage.
+                </p>
+
+            </div>
+
+
+
+            <!-- Logs -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Log Analyzer"
+            >
+
+                <h3>
+                    Logs
+                </h3>
+
+                <p>
+                    Analyze Linux system
+                    and authentication logs.
+                </p>
+
+            </div>
+
+
+
+            <!-- Security -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Security Audit"
+            >
+
+                <h3>
+                    Security
+                </h3>
+
+                <p>
+                    Audit firewall, SSH
+                    and security settings.
+                </p>
+
+            </div>
+
+
+
+            <!-- Backups -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Backup Manager"
+            >
+
+                <h3>
+                    Backups
+                </h3>
+
+                <p>
+                    Create, restore and
+                    manage backups.
+                </p>
+
+            </div>
+
+
+
+            <!-- Reports -->
+
+            <div
+                class="card"
+                data-page="development"
+                data-feature="Report Generator"
+            >
+
+                <h3>
+                    Reports
+                </h3>
+
+                <p>
+                    Generate enterprise
+                    server reports.
+                </p>
+
+            </div>
+
+
+        </div>
+
+
+    </template>
+
+
+
+    <!-- ======================================================
+         CPU MONITORING TEMPLATE
+    ======================================================= -->
+
+    <template id="template-cpu">
+
+
+        <!-- Page heading -->
+
+        <h1 class="page-title">
+            CPU Usage
+        </h1>
+
+
+        <p class="page-description">
+            Real-time CPU utilization collected from
+            the Linux server.
+        </p>
+
+
+
+        <!-- ==================================================
+             CPU MAIN CARD
+        =================================================== -->
+
+        <div class="health-card">
+
+
+            <!-- ==================================================
+                 CURRENT CPU SECTION
+            =================================================== -->
+
+            <div class="cpu-top">
+
+
+                <div>
+
+                    <h2>
+                        Current CPU Utilization
+                    </h2>
+
+
+                    <div
+                        class="cpu-value"
+                        data-role="cpu-value"
+                    >
+                        Loading...
+                    </div>
+
+                </div>
+
+
+
+                <!-- Dynamic CPU status -->
+
+                <div
+                    class="cpu-status status-normal"
+                    data-role="cpu-status"
+                >
+                    Normal
+                </div>
+
+
+            </div>
+
+
+
+            <!-- ==================================================
+                 GRAPH HEADER
+            =================================================== -->
+
+            <div class="chart-header">
+
+
+                <div class="chart-title">
+
+                    CPU Utilization History
+
+                </div>
+
+
+                <div class="chart-subtitle">
+
+                    Live monitoring •
+                    5 second interval
+
+                </div>
+
+
+            </div>
+
+
+
+            <!-- ==================================================
+                 CPU GRAPH
+
+                 JavaScript makes this canvas wider as
+                 more readings are received.
+
+                 The surrounding div provides the
+                 horizontal scrollbar.
+            =================================================== -->
+
+            <div class="cpu-chart-container">
+
+
+                <canvas
+                    data-role="cpu-chart"
+                ></canvas>
+
+
+            </div>
+
+
+
+            <!-- ==================================================
+                 LIVE DATA STATUS
+            =================================================== -->
+
+            <span class="live">
+
+                Linux data received
+
+            </span>
+
+
+
+            <div class="refresh">
+
+                Data automatically refreshes
+                every 5 seconds.
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- ==================================================
+             CPU STATISTICS
+        =================================================== -->
+
+        <div class="cpu-info-row">
+
+
+            <!-- Current -->
+
+            <div class="cpu-stat">
+
+                <span class="cpu-stat-label">
+
+                    Current
+
+                </span>
+
+
+                <span
+                    class="cpu-stat-value"
+                    data-role="current-cpu"
+                >
+
+                    0.0%
+
+                </span>
+
+            </div>
+
+
+
+            <!-- Average -->
+
+            <div class="cpu-stat">
+
+                <span class="cpu-stat-label">
+
+                    Average
+
+                </span>
+
+
+                <span
+                    class="cpu-stat-value"
+                    data-role="average-cpu"
+                >
+
+                    0.0%
+
+                </span>
+
+            </div>
+
+
+
+            <!-- Peak -->
+
+            <div class="cpu-stat">
+
+                <span class="cpu-stat-label">
+
+                    Peak
+
+                </span>
+
+
+                <span class="cpu-stat-value"
+                    data-role="peak-cpu"
+                >
+
+                    0.0%
+
+                </span>
+
+            </div>
+
+
+
+            <!-- Number of readings -->
+
+            <div class="cpu-stat">
+
+                <span class="cpu-stat-label">
+
+                    Readings
+
+                </span>
+
+
+                <span
+                    class="cpu-stat-value"
+                    data-role="reading-count"
+                >
+
+                    0
+
+                </span>
+
+            </div>
+
+
+        </div>
+
+
+    </template>
+
+
+
+    <!-- ======================================================
+         DEVELOPMENT / PLACEHOLDER TEMPLATE
+    ======================================================= -->
+
+    <template id="template-development">
+
+
+        <div class="development">
+
+
+            <h2
+                data-role="feature-name"
+            ></h2>
+
+
+            <p>
+                This feature is currently
+                under development.
+            </p>
+
+
+            <br>
+
+
+            <p>
+                The corresponding Linux functionality
+                will be implemented in a future module.
+            </p>
+
+
+        </div>
+
+
+    </template>
+
+
+
+    <!-- ======================================================
+         CHART.JS
+
+         This library is used ONLY for displaying the
+         CPU monitoring graph.
+
+         It must load BEFORE script.js.
+    ======================================================= -->
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/chart.js"
+    ></script>
+
+
+
+    <!-- ======================================================
+         OUR APPLICATION JAVASCRIPT
+
+         This handles navigation, API calls,
+         CPU history and graph updates.
+    ======================================================= -->
+
+    <script
+        src="/static/script.js"
+    ></script>
+
+
+</body>
+
+</html>

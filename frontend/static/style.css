@@ -1,0 +1,1330 @@
+/* ============================================================
+   ENTERPRISE LINUX SERVER MANAGEMENT PLATFORM
+   PREMIUM ADMIN DASHBOARD
+============================================================ */
+
+
+/* ============================================================
+   GLOBAL RESET
+============================================================ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+
+html {
+    min-height: 100%;
+}
+
+
+body {
+    min-height: 100vh;
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+
+    background:
+        #f4f6f9;
+
+    color:
+        #172033;
+
+    -webkit-font-smoothing:
+        antialiased;
+}
+
+
+/* ============================================================
+   HEADER
+============================================================ */
+
+.header {
+
+    height:
+        76px;
+
+    background:
+        #101828;
+
+    color:
+        #ffffff;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    padding:
+        0 32px;
+
+    border-bottom:
+        1px solid #202b3d;
+
+    box-shadow:
+        0 2px 10px rgba(16, 24, 40, 0.12);
+
+    position:
+        relative;
+
+    z-index:
+        20;
+}
+
+
+.logo {
+
+    font-size:
+        20px;
+
+    font-weight:
+        700;
+
+    letter-spacing:
+        -0.3px;
+
+    white-space:
+        nowrap;
+}
+
+
+.status {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        10px;
+
+    font-size:
+        14px;
+
+    font-weight:
+        500;
+
+    color:
+        #e5e7eb;
+}
+
+
+.status-dot {
+
+    width:
+        10px;
+
+    height:
+        10px;
+
+    background:
+        #22c55e;
+
+    border-radius:
+        50%;
+
+    box-shadow:
+        0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+
+/* ============================================================
+   MAIN LAYOUT
+============================================================ */
+
+.layout {
+
+    display:
+        flex;
+
+    min-height:
+        calc(100vh - 76px);
+
+    width:
+        100%;
+}
+
+
+/* ============================================================
+   SIDEBAR
+============================================================ */
+
+.sidebar {
+
+    width:
+        260px;
+
+    min-width:
+        260px;
+
+    background:
+        #172130;
+
+    color:
+        #ffffff;
+
+    padding:
+        26px 14px;
+
+    border-right:
+        1px solid #263246;
+
+    overflow-y:
+        auto;
+
+    box-shadow:
+        4px 0 16px rgba(15, 23, 42, 0.04);
+}
+
+
+.section-title {
+
+    color:
+        #8f9bad;
+
+    font-size:
+        11px;
+
+    text-transform:
+        uppercase;
+
+    letter-spacing:
+        1.4px;
+
+    font-weight:
+        700;
+
+    margin:
+        8px 14px 16px;
+}
+
+
+/* ============================================================
+   SIDEBAR MENU
+============================================================ */
+
+.menu-item {
+
+    width:
+        100%;
+
+    border:
+        none;
+
+    background:
+        transparent;
+
+    color:
+        #c5ccd7;
+
+    text-align:
+        left;
+
+    padding:
+        12px 14px;
+
+    border-radius:
+        8px;
+
+    cursor:
+        pointer;
+
+    font-size:
+        14px;
+
+    font-weight:
+        500;
+
+    margin-bottom:
+        4px;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
+}
+
+
+.menu-item:hover {
+
+    background:
+        #253247;
+
+    color:
+        #ffffff;
+
+}
+
+
+.menu-item.active {
+
+    background:
+        #344054;
+
+    color:
+        #ffffff;
+
+    box-shadow:
+        inset 3px 0 0 #3b82f6;
+}
+
+
+/* ============================================================
+   SUBMENU
+============================================================ */
+
+.submenu {
+
+    display:
+        none;
+
+    margin:
+        2px 0 8px 12px;
+
+    padding-left:
+        8px;
+
+    border-left:
+        1px solid #344054;
+}
+
+
+.submenu.show {
+
+    display:
+        block;
+}
+
+
+.submenu button {
+
+    width:
+        100%;
+
+    border:
+        none;
+
+    background:
+        transparent;
+
+    color:
+        #98a2b3;
+
+    text-align:
+        left;
+
+    padding:
+        10px 14px;
+
+    border-radius:
+        7px;
+
+    cursor:
+        pointer;
+
+    font-size:
+        13px;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+
+.submenu button:hover {
+
+    background:
+        #253247;
+
+    color:
+        #ffffff;
+}
+
+
+/* ============================================================
+   MAIN CONTENT
+============================================================ */
+
+.content {
+
+    flex:
+        1;
+
+    min-width:
+        0;
+
+    padding:
+        42px 48px 60px;
+
+    overflow-x:
+        hidden;
+
+    overflow-y:
+        auto;
+
+    background:
+        #f4f6f9;
+}
+
+
+/* ============================================================
+   PAGE HEADER
+============================================================ */
+
+.page-title {
+
+    font-size:
+        32px;
+
+    line-height:
+        1.2;
+
+    font-weight:
+        700;
+
+    letter-spacing:
+        -0.7px;
+
+    color:
+        #172033;
+
+    margin-bottom:
+        9px;
+}
+
+
+.page-description {
+
+    color:
+        #667085;
+
+    font-size:
+        15px;
+
+    line-height:
+        1.6;
+
+    margin-bottom:
+        30px;
+}
+
+
+/* ============================================================
+   DASHBOARD CARDS
+============================================================ */
+
+.cards {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(
+                245px,
+                1fr
+            )
+        );
+
+    gap:
+        20px;
+}
+
+
+.card {
+
+    position:
+        relative;
+
+    background:
+        #ffffff;
+
+    border:
+        1px solid #e4e7ec;
+
+    border-radius:
+        14px;
+
+    padding:
+        25px;
+
+    cursor:
+        pointer;
+
+    min-height:
+        145px;
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+
+    box-shadow:
+        0 2px 8px rgba(
+            16,
+            24,
+            40,
+            0.035
+        );
+}
+
+
+.card:hover {
+
+    transform:
+        translateY(-3px);
+
+    border-color:
+        #cdd5df;
+
+    box-shadow:
+        0 12px 28px rgba(
+            16,
+            24,
+            40,
+            0.09
+        );
+}
+
+
+.card h3 {
+
+    margin-bottom:
+        10px;
+
+    font-size:
+        17px;
+
+    font-weight:
+        650;
+
+    color:
+        #172033;
+}
+
+
+.card p {
+
+    color:
+        #667085;
+
+    font-size:
+        13px;
+
+    line-height:
+        1.6;
+}
+
+
+/* ============================================================
+   CPU PAGE
+============================================================ */
+
+.health-card {
+
+    width:
+        100%;
+
+    max-width:
+        none;
+
+    background:
+        #ffffff;
+
+    border:
+        1px solid #e4e7ec;
+
+    border-radius:
+        16px;
+
+    padding:
+        30px;
+
+    box-shadow:
+        0 5px 18px rgba(
+            16,
+            24,
+            40,
+            0.045
+        );
+}
+
+
+.health-card h2 {
+
+    margin-bottom:
+        8px;
+
+    font-size:
+        19px;
+
+    font-weight:
+        650;
+
+    color:
+        #172033;
+}
+
+
+/* ============================================================
+   CPU TOP SECTION
+============================================================ */
+
+.cpu-top {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        20px;
+
+    margin-bottom:
+        25px;
+}
+
+
+.cpu-value {
+
+    font-size:
+        56px;
+
+    line-height:
+        1;
+
+    font-weight:
+        750;
+
+    letter-spacing:
+        -2px;
+
+    color:
+        #172033;
+}
+
+
+/* ============================================================
+   CPU STATUS
+============================================================ */
+
+.cpu-status {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        7px;
+
+    padding:
+        8px 13px;
+
+    border-radius:
+        999px;
+
+    font-size:
+        12px;
+
+    font-weight:
+        700;
+
+    text-transform:
+        uppercase;
+
+    letter-spacing:
+        0.5px;
+}
+
+
+.cpu-status::before {
+
+    content:
+        "";
+
+    width:
+        7px;
+
+    height:
+        7px;
+
+    border-radius:
+        50%;
+
+    background:
+        currentColor;
+}
+
+
+.status-normal {
+
+    color:
+        #067647;
+
+    background:
+        #ecfdf3;
+}
+
+
+.status-warning {
+
+    color:
+        #b54708;
+
+    background:
+        #fffaeb;
+}
+
+
+.status-critical {
+
+    color:
+        #b42318;
+
+    background:
+        #fef3f2;
+}
+
+
+.status-unavailable {
+
+    color:
+        #667085;
+
+    background:
+        #f2f4f7;
+}
+
+
+/* ============================================================
+   CHART HEADER
+============================================================ */
+
+.chart-header {
+
+    display:
+        flex;
+
+    justify-content:
+        space-between;
+
+    align-items:
+        center;
+
+    gap:
+        20px;
+
+    margin-bottom:
+        12px;
+}
+
+
+.chart-title {
+
+    font-size:
+        14px;
+
+    font-weight:
+        650;
+
+    color:
+        #344054;
+}
+
+
+.chart-subtitle {
+
+    font-size:
+        12px;
+
+    color:
+        #98a2b3;
+}
+
+
+/* ============================================================
+   CHART CONTAINER
+============================================================ */
+
+.cpu-chart-container {
+
+    position:
+        relative;
+
+    width:
+        100%;
+
+    height:
+        440px;
+
+    padding:
+        12px 18px 8px;
+
+    background:
+        #ffffff;
+
+    border:
+        1px solid #eef1f5;
+
+    border-radius:
+        12px;
+
+    /*
+     * THIS ENABLES THE HORIZONTAL SCROLLBAR.
+     */
+
+    overflow-x:
+        auto;
+
+    overflow-y:
+        hidden;
+
+    scrollbar-width:
+        thin;
+
+    scrollbar-color:
+        #b8c2d1 #f1f3f6;
+}
+
+
+/* ============================================================
+   CHROME / EDGE SCROLLBAR
+============================================================ */
+
+.cpu-chart-container::-webkit-scrollbar {
+
+    height:
+        10px;
+}
+
+
+.cpu-chart-container::-webkit-scrollbar-track {
+
+    background:
+        #f1f3f6;
+
+    border-radius:
+        10px;
+}
+
+
+.cpu-chart-container::-webkit-scrollbar-thumb {
+
+    background:
+        #b8c2d1;
+
+    border-radius:
+        10px;
+
+    border:
+        2px solid #f1f3f6;
+}
+
+
+.cpu-chart-container::-webkit-scrollbar-thumb:hover {
+
+    background:
+        #8d99aa;
+}
+
+
+/* ============================================================
+   CHART CANVAS
+============================================================ */
+
+.cpu-chart-container canvas {
+
+    display:
+        block;
+
+    height:
+        400px !important;
+
+    /*
+     * JavaScript controls width.
+     */
+
+    max-width:
+        none !important;
+}
+
+
+/* ============================================================
+   CPU INFORMATION ROW
+============================================================ */
+
+.cpu-info-row {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(
+            4,
+            1fr
+        );
+
+    gap:
+        18px;
+
+    margin-top:
+        22px;
+}
+
+
+/* ============================================================
+   STAT CARD
+============================================================ */
+
+.cpu-stat {
+
+    background:
+        #ffffff;
+
+    border:
+        1px solid #e4e7ec;
+
+    border-radius:
+        13px;
+
+    padding:
+        20px 22px;
+
+    box-shadow:
+        0 3px 12px rgba(
+            16,
+            24,
+            40,
+            0.035
+        );
+}
+
+
+.cpu-stat-label {
+
+    display:
+        block;
+
+    color:
+        #98a2b3;
+
+    font-size:
+        11px;
+
+    font-weight:
+        700;
+
+    text-transform:
+        uppercase;
+
+    letter-spacing:
+        1px;
+
+    margin-bottom:
+        9px;
+}
+
+
+.cpu-stat-value {
+
+    display:
+        block;
+
+    color:
+        #172033;
+
+    font-size:
+        23px;
+
+    font-weight:
+        700;
+}
+
+
+/* ============================================================
+   LIVE DATA
+============================================================ */
+
+.live {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        8px;
+
+    background:
+        #ecfdf3;
+
+    color:
+        #067647;
+
+    padding:
+        8px 13px;
+
+    border-radius:
+        999px;
+
+    font-size:
+        12px;
+
+    font-weight:
+        700;
+
+    margin-top:
+        20px;
+}
+
+
+.live::before {
+
+    content:
+        "";
+
+    width:
+        7px;
+
+    height:
+        7px;
+
+    background:
+        #12b76a;
+
+    border-radius:
+        50%;
+
+    box-shadow:
+        0 0 0 3px rgba(
+            18,
+            183,
+            106,
+            0.12
+        );
+}
+
+
+/* ============================================================
+   REFRESH INFORMATION
+============================================================ */
+
+.refresh {
+
+    margin-top:
+        12px;
+
+    color:
+        #98a2b3;
+
+    font-size:
+        12px;
+}
+
+
+/* ============================================================
+   DEVELOPMENT PAGE
+============================================================ */
+
+.development {
+
+    width:
+        100%;
+
+    max-width:
+        850px;
+
+    background:
+        #ffffff;
+
+    border:
+        1px solid #e4e7ec;
+
+    border-radius:
+        16px;
+
+    padding:
+        70px 40px;
+
+    text-align:
+        center;
+
+    box-shadow:
+        0 5px 18px rgba(
+            16,
+            24,
+            40,
+            0.045
+        );
+}
+
+
+.development h2 {
+
+    margin-bottom:
+        15px;
+
+    font-size:
+        24px;
+
+    color:
+        #172033;
+}
+
+
+.development p {
+
+    color:
+        #667085;
+
+    line-height:
+        1.7;
+
+    font-size:
+        14px;
+}
+
+
+/* ============================================================
+   EMPTY / LOADING STATE
+============================================================ */
+
+.loading-state {
+
+    color:
+        #98a2b3;
+
+    font-size:
+        13px;
+
+    padding:
+        20px;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (
+    max-width: 1100px
+) {
+
+    .content {
+
+        padding:
+            32px 28px 50px;
+    }
+
+
+    .sidebar {
+
+        width:
+            230px;
+
+        min-width:
+            230px;
+    }
+
+
+    .cpu-info-row {
+
+        grid-template-columns:
+            repeat(
+                2,
+                1fr
+            );
+    }
+}
+
+
+@media (
+    max-width: 768px
+) {
+
+    .header {
+
+        height:
+            68px;
+
+        padding:
+            0 18px;
+    }
+
+
+    .logo {
+
+        font-size:
+            15px;
+
+        max-width:
+            65%;
+
+        overflow:
+            hidden;
+
+        text-overflow:
+            ellipsis;
+    }
+
+
+    .status {
+
+        font-size:
+            12px;
+    }
+
+
+    .layout {
+
+        min-height:
+            calc(100vh - 68px);
+    }
+
+
+    .sidebar {
+
+        width:
+            205px;
+
+        min-width:
+            205px;
+
+        padding:
+            20px 10px;
+    }
+
+
+    .content {
+
+        padding:
+            25px 18px 40px;
+    }
+
+
+    .page-title {
+
+        font-size:
+            27px;
+    }
+
+
+    .health-card {
+
+        padding:
+            20px;
+    }
+
+
+    .cpu-top {
+
+        align-items:
+            flex-start;
+
+        flex-direction:
+            column;
+    }
+
+
+    .cpu-value {
+
+        font-size:
+            48px;
+    }
+
+
+    .cpu-info-row {
+
+        grid-template-columns:
+            1fr;
+    }
+}
+
+
+/* ============================================================
+   VERY SMALL SCREENS
+============================================================ */
+
+@media (
+    max-width: 520px
+) {
+
+    .sidebar {
+
+        width:
+            180px;
+
+        min-width:
+            180px;
+    }
+
+
+    .menu-item {
+
+        font-size:
+            13px;
+
+        padding:
+            11px 10px;
+    }
+
+
+    .submenu {
+
+        margin-left:
+            5px;
+    }
+
+
+    .submenu button {
+
+        padding:
+            9px 10px;
+
+        font-size:
+            12px;
+    }
+
+
+    .content {
+
+        padding:
+            20px 14px 35px;
+    }
+
+
+    .cards {
+
+        grid-template-columns:
+            1fr;
+    }
+
+
+    .cpu-chart-container {
+
+        height:
+            410px;
+    }
+}
