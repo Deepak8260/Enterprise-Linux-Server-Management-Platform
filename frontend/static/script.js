@@ -1054,7 +1054,7 @@ function createCpuChart() {
                     labels:
                         getChartWindow().map(
                             item =>
-                                item.time
+                                formatTime(item.time)
                         ),
 
 
@@ -1310,21 +1310,9 @@ function createCpuChart() {
                                         index
                                     ) {
 
-                                        const point =
-                                            getChartWindow()[index];
-
-
-                                        if (
-                                            !point
-                                        ) {
-
-                                            return "";
-                                        }
-
-
-                                        return formatTime(
-                                            point.time
-                                        );
+                                        return this.getLabelForValue
+                                            ? this.getLabelForValue(value)
+                                            : value;
                                     }
 
                             }
@@ -1521,7 +1509,7 @@ function renderChartWindow() {
     cpuChart.data.labels =
         windowPoints.map(
             item =>
-                item.time
+                formatTime(item.time)
         );
 
     cpuChart.data.datasets[0].data =
