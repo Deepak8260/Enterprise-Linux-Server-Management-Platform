@@ -622,7 +622,7 @@ async function loadCpuHistoryFromServer() {
         const response =
             await fetch(
                 "/api/cpu/history?limit=" +
-                    MAX_FETCHED_READINGS
+                MAX_FETCHED_READINGS
             );
 
         if (!response.ok) {
@@ -827,7 +827,7 @@ function getMaxChartWindowStart() {
     return Math.max(
         0,
         cpuHistory.length -
-            CHART_WINDOW_SIZE
+        CHART_WINDOW_SIZE
     );
 }
 
@@ -857,7 +857,7 @@ function getChartWindow() {
     return cpuHistory.slice(
         chartWindowStart,
         chartWindowStart +
-            CHART_WINDOW_SIZE
+        CHART_WINDOW_SIZE
     );
 }
 
@@ -906,19 +906,19 @@ function createCpuDataset() {
 
 
         borderColor:
-            "#2563eb",
+            "#10b981",
 
 
         backgroundColor:
-            "#2563eb",
+            "rgba(16, 185, 129, 0.15)",
 
 
         pointBackgroundColor:
-            "#ffffff",
+            "#0d1424",
 
 
         pointBorderColor:
-            "#2563eb",
+            "#10b981",
 
 
         pointBorderWidth:
@@ -1119,19 +1119,19 @@ function createCpuChart() {
 
 
                             backgroundColor:
-                                "#111827",
+                                "#0f172a",
 
 
                             titleColor:
-                                "#ffffff",
+                                "#f8fafc",
 
 
                             bodyColor:
-                                "#ffffff",
+                                "#f8fafc",
 
 
                             borderColor:
-                                "#334155",
+                                "rgba(16, 185, 129, 0.3)",
 
 
                             borderWidth:
@@ -1252,7 +1252,7 @@ function createCpuChart() {
                             grid: {
 
                                 color:
-                                    "#edf0f4",
+                                    "#1e293b",
 
 
                                 lineWidth:
@@ -1270,7 +1270,7 @@ function createCpuChart() {
                             ticks: {
 
                                 color:
-                                    "#7f8b9d",
+                                    "#94a3b8",
 
 
                                 autoSkip:
@@ -1300,7 +1300,10 @@ function createCpuChart() {
                                 font: {
 
                                     size:
-                                        10
+                                        11,
+
+                                    family:
+                                        "'JetBrains Mono', monospace"
                                 },
 
 
@@ -1333,7 +1336,7 @@ function createCpuChart() {
                             grid: {
 
                                 color:
-                                    "#e9edf3",
+                                    "#1e293b",
 
 
                                 lineWidth:
@@ -1355,11 +1358,18 @@ function createCpuChart() {
 
 
                                 color:
-                                    "#7f8b9d",
+                                    "#94a3b8",
 
 
                                 padding:
                                     10,
+
+
+                                font: {
+
+                                    family:
+                                        "'JetBrains Mono', monospace"
+                                },
 
 
                                 callback:
