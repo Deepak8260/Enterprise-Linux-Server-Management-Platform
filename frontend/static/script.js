@@ -3225,10 +3225,22 @@ function getActiveRangeLabel() {
 }
 
 
+/*
+ * The Time Range and Date Range dropdowns are two independent
+ * controls that happen to share the same underlying state. Each
+ * one must only reflect its OWN family of options -- picking
+ * "Last 1 Hour" in Time Range must not make Date Range claim
+ * "Last 1 Hour" too, and vice versa. Whichever family is not
+ * currently selected simply shows "Live".
+ */
+
 function updateTimeRangeDropdownUI() {
 
     const activeLabel =
         getActiveRangeLabel();
+
+    const isDateScale =
+        DATE_SCALE_RANGE_KEYS.has(selectedTimeRange);
 
     const triggerLabelEl =
         contentEl.querySelector(
@@ -3242,12 +3254,14 @@ function updateTimeRangeDropdownUI() {
 
     if (triggerLabelEl) {
 
-        triggerLabelEl.textContent = activeLabel;
+        triggerLabelEl.textContent =
+            isDateScale ? "Live" : activeLabel;
     }
 
     if (dateTriggerLabelEl) {
 
-        dateTriggerLabelEl.textContent = activeLabel;
+        dateTriggerLabelEl.textContent =
+            isDateScale ? activeLabel : "Live";
     }
 
 
