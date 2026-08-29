@@ -793,3 +793,172 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* ============================================================
+   DASHBOARD OVERVIEW STRIP
+============================================================ */
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 34px;
+}
+
+.overview-tile {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.overview-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+.overview-value {
+    font-family: var(--font-mono);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.overview-value-sub {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.overview-value-emerald {
+    color: var(--text-emerald);
+}
+
+
+/* ============================================================
+   DASHBOARD SECTION HEADINGS
+============================================================ */
+
+.section-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 30px 0 16px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--text-secondary);
+}
+
+.section-heading:first-of-type {
+    margin-top: 0;
+}
+
+.section-heading-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+
+/* ============================================================
+   DASHBOARD CARD ENHANCEMENTS (icon / badge / arrow)
+============================================================ */
+
+.card {
+    display: flex;
+    flex-direction: column;
+}
+
+.card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.card-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.icon-emerald {
+    color: var(--accent-emerald);
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.icon-teal {
+    color: var(--accent-teal);
+    background: rgba(20, 184, 166, 0.12);
+}
+
+.icon-amber {
+    color: var(--accent-amber);
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.icon-rose {
+    color: var(--accent-rose);
+    background: rgba(244, 63, 94, 0.12);
+}
+
+.card-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 4px 9px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
+.badge-live {
+    color: var(--text-emerald);
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid var(--border-emerald);
+}
+
+.badge-dev {
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+}
+
+.card p {
+    flex: 1;
+}
+
+.card-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: color 0.2s ease, gap 0.2s ease;
+}
+
+.card:hover .card-arrow {
+    color: var(--accent-emerald);
+    gap: 9px;
+}
+
+.card-live {
+    border-color: var(--border-emerald);
+    background: linear-gradient(160deg, rgba(16, 185, 129, 0.06), var(--bg-card) 60%);
+}
+
