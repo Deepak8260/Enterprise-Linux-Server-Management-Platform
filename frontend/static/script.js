@@ -631,24 +631,6 @@ async function loadCpuUsage() {
 
 
         /*
-         * Update the large current value.
-         */
-
-        valueEl.textContent =
-            safeCpu.toFixed(1) +
-            "%";
-
-
-        /*
-         * Update current status.
-         */
-
-        updateCpuStatus(
-            safeCpu
-        );
-
-
-        /*
          * Update graph.
          */
 
@@ -2215,6 +2197,16 @@ function updateCpuStatistics() {
             '[data-role="current-cpu"]'
         );
 
+    const heroValueEl =
+        contentEl.querySelector(
+            '[data-role="cpu-value"]'
+        );
+
+    const heroLabelEl =
+        contentEl.querySelector(
+            '[data-role="cpu-value-label"]'
+        );
+
 
     const readingsEl =
         contentEl.querySelector(
@@ -2297,6 +2289,21 @@ function updateCpuStatistics() {
             minimumTimeEl.textContent = "";
         }
 
+        if (heroValueEl) {
+
+            heroValueEl.textContent = "--%";
+        }
+
+        if (heroLabelEl) {
+
+            heroLabelEl.textContent =
+                selectedTimeRange === "live"
+                    ? "Current CPU Utilization"
+                    : "Average CPU Utilization";
+        }
+
+        updateCpuStatus(null);
+
         return;
     }
 
@@ -2361,6 +2368,26 @@ function updateCpuStatistics() {
             latest.toFixed(1) +
             "%";
     }
+
+    const isLive =
+        selectedTimeRange === "live";
+
+    if (heroValueEl) {
+
+        heroValueEl.textContent =
+            (isLive ? latest : average).toFixed(1) +
+            "%";
+    }
+
+    if (heroLabelEl) {
+
+        heroLabelEl.textContent =
+            isLive
+                ? "Current CPU Utilization"
+                : "Average CPU Utilization";
+    }
+
+    updateCpuStatus(isLive ? latest : average);
 
 
     if (averageEl) {
