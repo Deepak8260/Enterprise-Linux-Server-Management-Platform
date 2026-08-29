@@ -145,6 +145,51 @@ let refreshIntervalMs = 5000;
 let filteredReadings = [];
 
 
+/*
+ * chartDisplayReadings : what the CHART actually plots. For
+ *                        short ranges (Live/1h/5h/12h) this is
+ *                        identical to filteredReadings. For
+ *                        day-scale ranges it is a downsampled
+ *                        (aggregated) version of it, so the
+ *                        chart never tries to draw thousands of
+ *                        raw points. KPIs always use the exact,
+ *                        non-aggregated filteredReadings.
+ */
+
+let chartDisplayReadings = [];
+
+
+/*
+ * 0 means "no aggregation, raw readings". Any other value is
+ * the bucket size (in ms) currently used to build
+ * chartDisplayReadings.
+ */
+
+let aggregationIntervalMs = 0;
+
+
+/*
+ * Temporary state for the Custom Date + Time Range picker.
+ * Nothing here is applied until the user clicks "Apply" --
+ * Cancel simply discards it.
+ */
+
+let dtPicker = {
+
+    from: {
+        year: 0,
+        month: 0,
+        selectedDate: null
+    },
+
+    to: {
+        year: 0,
+        month: 0,
+        selectedDate: null
+    }
+};
+
+
 /* ==========================================================
    CONSTANTS
 ========================================================== */
@@ -401,6 +446,8 @@ async function renderCpuPage() {
      */
 
     wireTimeRangeControls();
+
+    wireDateRangeControls();
 
 
     /*
@@ -845,19 +892,96 @@ function formatTime(date) {
 
 function formatTooltipTime(date) {
 
+    return formatDateTimeLabel(date);
+}
+
+
+/* ==========================================================
+   TWELVE-HOUR TIME (HH:MM AM/PM, no seconds)
+
+   Used for every time-picker input field so the text always
+   matches parseTwelveHourTime()'s expected format.
+========================================================== */
+
+function formatTwelveHourTime(date) {
+
     return date.toLocaleTimeString(
         [],
         {
-            hour:
-                "2-digit",
-
-            minute:
-                "2-digit",
-
-            second:
-                "2-digit"
+            hour: "2-digit",
+            minute: "2-digit"
         }
     );
+}
+
+
+/* ==========================================================
+   FULL DATE + TIME LABEL
+
+   Example: "27 Aug 2026, 08:45 AM" -- used by tooltips, the
+   applied range summary, and the Peak/Minimum KPI timestamps
+   so every part of the UI reports dates the same way.
+========================================================== */
+
+function formatDateTimeLabel(date) {
+
+    const datePart =
+        date.toLocaleDateString(
+            "en-GB",
+            {
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            }
+        );
+
+    return datePart + ", " + formatTwelveHourTime(date);
+}
+
+
+/* ==========================================================
+   DURATION LABEL
+
+   Example: 3 days 2 hours 30 minutes.
+========================================================== */
+
+function formatDurationLabel(durationMs) {
+
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+
+        return "0 minutes";
+    }
+
+    const totalMinutes =
+        Math.round(durationMs / 60000);
+
+    const days =
+        Math.floor(totalMinutes / 1440);
+
+    const hours =
+        Math.floor((totalMinutes % 1440) / 60);
+
+    const minutes =
+        totalMinutes % 60;
+
+    const parts = [];
+
+    if (days > 0) {
+
+        parts.push(days + " day" + (days === 1 ? "" : "s"));
+    }
+
+    if (hours > 0) {
+
+        parts.push(hours + " hour" + (hours === 1 ? "" : "s"));
+    }
+
+    if (minutes > 0 || parts.length === 0) {
+
+        parts.push(minutes + " minute" + (minutes === 1 ? "" : "s"));
+    }
+
+    return parts.join(" ");
 }
 
 
@@ -891,7 +1015,7 @@ function getMaxChartWindowStart() {
 
     return Math.max(
         0,
-        filteredReadings.length -
+        chartDisplayReadings.length -
         CHART_WINDOW_SIZE
     );
 }
@@ -919,7 +1043,7 @@ function getChartWindow() {
     }
 
 
-    return filteredReadings.slice(
+    return chartDisplayReadings.slice(
         chartWindowStart,
         chartWindowStart +
         CHART_WINDOW_SIZE
@@ -1281,13 +1405,21 @@ function createCpuChart() {
                                             "CPU Utilization"
                                         ) {
 
-                                            return (
-                                                "CPU Usage: " +
-                                                point.value.toFixed(
-                                                    1
-                                                ) +
-                                                "%"
-                                            );
+                                            const valueLine =
+                                                (point.aggregated
+                                                    ? "Avg CPU Utilization: "
+                                                    : "CPU Utilization: ") +
+                                                point.value.toFixed(1) +
+                                                "%";
+
+                                            const statusLine =
+                                                "Status: " +
+                                                getCpuStatus(point.value).label;
+
+                                            return [
+                                                valueLine,
+                                                statusLine
+                                            ];
                                         }
 
 
@@ -2101,6 +2233,21 @@ function updateCpuStatistics() {
             '[data-role="peak-cpu"]'
         );
 
+    const peakTimeEl =
+        contentEl.querySelector(
+            '[data-role="peak-cpu-time"]'
+        );
+
+    const minimumEl =
+        contentEl.querySelector(
+            '[data-role="minimum-cpu"]'
+        );
+
+    const minimumTimeEl =
+        contentEl.querySelector(
+            '[data-role="minimum-cpu-time"]'
+        );
+
 
     const readingsCount =
         filteredReadings.length;
@@ -2135,6 +2282,21 @@ function updateCpuStatistics() {
             peakEl.textContent = "--%";
         }
 
+        if (peakTimeEl) {
+
+            peakTimeEl.textContent = "";
+        }
+
+        if (minimumEl) {
+
+            minimumEl.textContent = "--%";
+        }
+
+        if (minimumTimeEl) {
+
+            minimumTimeEl.textContent = "";
+        }
+
         return;
     }
 
@@ -2162,10 +2324,29 @@ function updateCpuStatistics() {
         values.length;
 
 
-    const peak =
-        Math.max(
-            ...values
-        );
+    /*
+     * Peak / minimum are found together with the exact
+     * reading that produced them, so their timestamps are
+     * always accurate -- even once the CHART is aggregated,
+     * these numbers come straight from raw filteredReadings.
+     */
+
+    let peakReading = filteredReadings[0];
+
+    let minimumReading = filteredReadings[0];
+
+    for (const reading of filteredReadings) {
+
+        if (reading.value > peakReading.value) {
+
+            peakReading = reading;
+        }
+
+        if (reading.value < minimumReading.value) {
+
+            minimumReading = reading;
+        }
+    }
 
 
     const latest =
@@ -2195,10 +2376,27 @@ function updateCpuStatistics() {
     if (peakEl) {
 
         peakEl.textContent =
-            peak.toFixed(
-                1
-            ) +
+            peakReading.value.toFixed(1) +
             "%";
+    }
+
+    if (peakTimeEl) {
+
+        peakTimeEl.textContent =
+            formatDateTimeLabel(peakReading.time);
+    }
+
+    if (minimumEl) {
+
+        minimumEl.textContent =
+            minimumReading.value.toFixed(1) +
+            "%";
+    }
+
+    if (minimumTimeEl) {
+
+        minimumTimeEl.textContent =
+            formatDateTimeLabel(minimumReading.time);
     }
 }
 
@@ -2221,7 +2419,15 @@ const TIME_RANGE_LABELS = {
 
     "12h": "Last 12 Hours",
 
-    custom: "Custom"
+    custom: "Custom",
+
+    "1d": "Last 1 Day",
+
+    "3d": "Last 3 Days",
+
+    "5d": "Last 5 Days",
+
+    "custom-date": "Custom"
 };
 
 
@@ -2236,8 +2442,29 @@ const TIME_RANGE_DURATIONS_MS = {
 
     "5h": 5 * 60 * 60 * 1000,
 
-    "12h": 12 * 60 * 60 * 1000
+    "12h": 12 * 60 * 60 * 1000,
+
+    "1d": 24 * 60 * 60 * 1000,
+
+    "3d": 3 * 24 * 60 * 60 * 1000,
+
+    "5d": 5 * 24 * 60 * 60 * 1000
 };
+
+
+/*
+ * Which "family" a range key belongs to. Day-scale ranges get
+ * chart aggregation and do NOT auto-follow the live edge once
+ * applied (per spec: historical mode should not silently move
+ * the scrollbar as new readings arrive).
+ */
+
+const DATE_SCALE_RANGE_KEYS = new Set([
+    "1d",
+    "3d",
+    "5d",
+    "custom-date"
+]);
 
 
 /* ----------------------------------------------------------
@@ -2257,6 +2484,25 @@ function resetTimeRangeState() {
     refreshIntervalMs = CPU_REFRESH_INTERVAL_DEFAULT;
 
     filteredReadings = [];
+
+    chartDisplayReadings = [];
+
+    aggregationIntervalMs = 0;
+
+    dtPicker = {
+
+        from: {
+            year: 0,
+            month: 0,
+            selectedDate: null
+        },
+
+        to: {
+            year: 0,
+            month: 0,
+            selectedDate: null
+        }
+    };
 }
 
 
@@ -2279,7 +2525,7 @@ function getTimeRange() {
     }
 
 
-    if (selectedTimeRange === "custom") {
+    if (selectedTimeRange === "custom" || selectedTimeRange === "custom-date") {
 
         return {
             start: customRangeStart,
@@ -2328,6 +2574,8 @@ function filterReadingsByTime() {
         filteredReadings =
             cpuHistory.slice();
 
+        computeChartDisplayReadings();
+
         return filteredReadings;
     }
 
@@ -2339,7 +2587,203 @@ function filterReadingsByTime() {
                 reading.time.getTime() <= range.end.getTime()
         );
 
+    computeChartDisplayReadings();
+
     return filteredReadings;
+}
+
+
+/* ----------------------------------------------------------
+   getAggregationIntervalMs()
+
+   Chooses a sensible bucket size for the CHART based on how
+   much time the currently selected range spans. KPIs never
+   use this -- they always read the raw filteredReadings.
+---------------------------------------------------------- */
+
+function getAggregationIntervalMs() {
+
+    if (!DATE_SCALE_RANGE_KEYS.has(selectedTimeRange)) {
+
+        /*
+         * Live / 1h / 5h / 12h already fit comfortably in the
+         * existing windowed chart -- no aggregation needed.
+         */
+
+        return 0;
+    }
+
+    const range =
+        getTimeRange();
+
+    if (!range.start || !range.end) {
+
+        return 0;
+    }
+
+    const spanMs =
+        range.end.getTime() - range.start.getTime();
+
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    const ONE_DAY = 24 * ONE_HOUR;
+
+    if (spanMs <= ONE_HOUR) {
+
+        return 0;
+    }
+
+    if (spanMs <= ONE_DAY) {
+
+        return 60 * 1000;
+    }
+
+    if (spanMs <= 3 * ONE_DAY) {
+
+        return 60 * 1000;
+    }
+
+    if (spanMs <= 7 * ONE_DAY) {
+
+        return 15 * 60 * 1000;
+    }
+
+    return 60 * 60 * 1000;
+}
+
+
+/* ----------------------------------------------------------
+   aggregateReadings(readings, bucketMs)
+
+   Downsamples readings into fixed-size time buckets, each
+   represented by its average value and its start time. Raw
+   readings are never modified -- this only affects what the
+   CHART renders.
+---------------------------------------------------------- */
+
+function aggregateReadings(readings, bucketMs) {
+
+    if (!readings.length || bucketMs <= 0) {
+
+        return readings.slice();
+    }
+
+    const buckets = new Map();
+
+    for (const reading of readings) {
+
+        const bucketStart =
+            Math.floor(reading.time.getTime() / bucketMs) * bucketMs;
+
+        if (!buckets.has(bucketStart)) {
+
+            buckets.set(bucketStart, {
+                sum: 0,
+                count: 0
+            });
+        }
+
+        const bucket =
+            buckets.get(bucketStart);
+
+        bucket.sum += reading.value;
+
+        bucket.count += 1;
+    }
+
+    const bucketStarts =
+        Array.from(buckets.keys()).sort(
+            (a, b) => a - b
+        );
+
+    return bucketStarts.map((bucketStart) => {
+
+        const bucket =
+            buckets.get(bucketStart);
+
+        return {
+            value: bucket.sum / bucket.count,
+            time: new Date(bucketStart),
+            aggregated: true,
+            sampleCount: bucket.count
+        };
+    });
+}
+
+
+/* ----------------------------------------------------------
+   computeChartDisplayReadings()
+
+   Rebuilds chartDisplayReadings (raw or aggregated) from the
+   current filteredReadings, and keeps the "(1 Minute
+   Interval)" style label near the chart in sync.
+---------------------------------------------------------- */
+
+function computeChartDisplayReadings() {
+
+    aggregationIntervalMs =
+        getAggregationIntervalMs();
+
+    chartDisplayReadings =
+        aggregationIntervalMs > 0
+            ? aggregateReadings(filteredReadings, aggregationIntervalMs)
+            : filteredReadings.slice();
+
+    updateResolutionLabel();
+
+    return chartDisplayReadings;
+}
+
+
+/* ----------------------------------------------------------
+   updateResolutionLabel()
+
+   "CPU Utilization History (1 Minute Interval)" -- shows the
+   viewer exactly what resolution they are looking at.
+---------------------------------------------------------- */
+
+function updateResolutionLabel() {
+
+    const labelEl =
+        contentEl.querySelector(
+            '[data-role="chart-resolution-label"]'
+        );
+
+    if (!labelEl) {
+
+        return;
+    }
+
+    if (aggregationIntervalMs <= 0) {
+
+        labelEl.textContent =
+            selectedTimeRange === "live"
+                ? "Live monitoring • " + Math.round(refreshIntervalMs / 1000) + " second interval"
+                : "Every reading • no aggregation";
+
+        return;
+    }
+
+    const minutes =
+        aggregationIntervalMs / 60000;
+
+    let intervalText;
+
+    if (minutes < 60) {
+
+        intervalText =
+            minutes + " Minute" + (minutes === 1 ? "" : "s") + " Interval";
+
+    } else {
+
+        const hours = minutes / 60;
+
+        intervalText =
+            hours + " Hour" + (hours === 1 ? "" : "s") + " Interval";
+    }
+
+    labelEl.textContent =
+        "Aggregated • (" + intervalText + ")";
 }
 
 
@@ -2485,7 +2929,14 @@ function applyTimeRangeCore() {
 
     filterReadingsByTime();
 
-    followLive = true;
+    /*
+     * Day-scale (Date Range) selections start positioned at
+     * the newest available data, but do NOT keep auto-following
+     * as more readings arrive -- the user's chosen historical
+     * window should stay put until they act again.
+     */
+
+    followLive = !DATE_SCALE_RANGE_KEYS.has(selectedTimeRange);
 
     chartWindowStart =
         getMaxChartWindowStart();
@@ -2498,7 +2949,68 @@ function applyTimeRangeCore() {
 
     updateRangeSummary();
 
+    updateAppliedRangeSummaryBar();
+
     updateTimeRangeDropdownUI();
+}
+
+
+/* ----------------------------------------------------------
+   updateAppliedRangeSummaryBar()
+
+   Shows the exact currently-applied range and its total
+   duration, e.g. "26 Aug 2026, 08:30 AM – 29 Aug 2026, 11:00 AM"
+   plus "3 days 2 hours 30 minutes".
+---------------------------------------------------------- */
+
+function updateAppliedRangeSummaryBar() {
+
+    const barEl =
+        contentEl.querySelector(
+            '[data-role="range-summary-bar"]'
+        );
+
+    const textEl =
+        contentEl.querySelector(
+            '[data-role="range-summary-text"]'
+        );
+
+    const durationEl =
+        contentEl.querySelector(
+            '[data-role="range-summary-duration"]'
+        );
+
+    if (!barEl || !textEl || !durationEl) {
+
+        return;
+    }
+
+    if (selectedTimeRange === "live") {
+
+        barEl.hidden = true;
+
+        return;
+    }
+
+    const range =
+        getTimeRange();
+
+    if (!range.start || !range.end) {
+
+        barEl.hidden = true;
+
+        return;
+    }
+
+    barEl.hidden = false;
+
+    textEl.textContent =
+        formatDateTimeLabel(range.start) +
+        "  —  " +
+        formatDateTimeLabel(range.end);
+
+    durationEl.textContent =
+        formatDurationLabel(range.end.getTime() - range.start.getTime());
 }
 
 
@@ -2691,30 +3203,51 @@ function applyCustomTimeRange(fromStr, toStr) {
    Time Range dropdown + Custom modal wiring
 ---------------------------------------------------------- */
 
+function getActiveRangeLabel() {
+
+    const isCustom =
+        (selectedTimeRange === "custom" || selectedTimeRange === "custom-date") &&
+        customRangeStart &&
+        customRangeEnd;
+
+    if (isCustom) {
+
+        return (
+            "Custom (" +
+            formatTwelveHourTime(customRangeStart) +
+            " – " +
+            formatTwelveHourTime(customRangeEnd) +
+            ")"
+        );
+    }
+
+    return TIME_RANGE_LABELS[selectedTimeRange] || "Live";
+}
+
+
 function updateTimeRangeDropdownUI() {
+
+    const activeLabel =
+        getActiveRangeLabel();
 
     const triggerLabelEl =
         contentEl.querySelector(
             '[data-role="time-range-trigger-label"]'
         );
 
+    const dateTriggerLabelEl =
+        contentEl.querySelector(
+            '[data-role="date-range-trigger-label"]'
+        );
+
     if (triggerLabelEl) {
 
-        if (selectedTimeRange === "custom" && customRangeStart && customRangeEnd) {
+        triggerLabelEl.textContent = activeLabel;
+    }
 
-            triggerLabelEl.textContent =
-                "Custom (" +
-                formatTime(customRangeStart) +
-                " – " +
-                formatTime(customRangeEnd) +
-                ")";
+    if (dateTriggerLabelEl) {
 
-        } else {
-
-            triggerLabelEl.textContent =
-                TIME_RANGE_LABELS[selectedTimeRange] ||
-                "Live";
-        }
+        dateTriggerLabelEl.textContent = activeLabel;
     }
 
 
@@ -2722,9 +3255,17 @@ function updateTimeRangeDropdownUI() {
         .querySelectorAll(".dropdown-option")
         .forEach((option) => {
 
+            const matchesTimeRange =
+                option.dataset.range !== undefined &&
+                option.dataset.range === selectedTimeRange;
+
+            const matchesDateRange =
+                option.dataset.dateRange !== undefined &&
+                option.dataset.dateRange === selectedTimeRange;
+
             option.classList.toggle(
                 "active",
-                option.dataset.range === selectedTimeRange
+                matchesTimeRange || matchesDateRange
             );
         });
 }
@@ -2789,13 +3330,13 @@ function openCustomRangeModal() {
     if (fromInput && customRangeStart) {
 
         fromInput.value =
-            formatTime(customRangeStart);
+            formatTwelveHourTime(customRangeStart);
     }
 
     if (toInput && customRangeEnd) {
 
         toInput.value =
-            formatTime(customRangeEnd);
+            formatTwelveHourTime(customRangeEnd);
     }
 
     hideCustomRangeError();
@@ -3053,6 +3594,693 @@ function wireTimeRangeControls() {
     updateTimeRangeDropdownUI();
 
     updateLivePauseButtonUI();
+}
+
+
+/* ==========================================================
+   DATE RANGE DROPDOWN + CUSTOM DATE/TIME CALENDAR MODAL
+========================================================== */
+
+function closeDateRangeMenu() {
+
+    const dropdownEl =
+        contentEl.querySelector(
+            '[data-role="date-range-dropdown"]'
+        );
+
+    const menuEl =
+        contentEl.querySelector(
+            '[data-role="date-range-menu"]'
+        );
+
+    const triggerEl =
+        contentEl.querySelector(
+            '[data-role="date-range-trigger"]'
+        );
+
+    if (dropdownEl) {
+
+        dropdownEl.removeAttribute("data-open");
+    }
+
+    if (menuEl) {
+
+        menuEl.hidden = true;
+    }
+
+    if (triggerEl) {
+
+        triggerEl.setAttribute("aria-expanded", "false");
+    }
+}
+
+
+function applyDateRange(rangeKey) {
+
+    if (rangeKey === "custom-date") {
+
+        openDateTimeRangeModal();
+
+        return;
+    }
+
+    selectedTimeRange = rangeKey;
+
+    customRangeStart = null;
+
+    customRangeEnd = null;
+
+    applyTimeRangeCore();
+
+    closeDateRangeMenu();
+}
+
+
+/* ----------------------------------------------------------
+   Custom Date + Time Range modal
+---------------------------------------------------------- */
+
+function showDtRangeError(message) {
+
+    const errorEl =
+        contentEl.querySelector(
+            '[data-role="dt-range-error"]'
+        );
+
+    if (!errorEl) {
+
+        return;
+    }
+
+    errorEl.textContent = message;
+
+    errorEl.hidden = false;
+}
+
+
+function hideDtRangeError() {
+
+    const errorEl =
+        contentEl.querySelector(
+            '[data-role="dt-range-error"]'
+        );
+
+    if (!errorEl) {
+
+        return;
+    }
+
+    errorEl.hidden = true;
+
+    errorEl.textContent = "";
+}
+
+
+function startOfDay(dateObj) {
+
+    return new Date(
+        dateObj.getFullYear(),
+        dateObj.getMonth(),
+        dateObj.getDate()
+    );
+}
+
+
+function openDateTimeRangeModal() {
+
+    const overlayEl =
+        contentEl.querySelector(
+            '[data-role="dt-range-overlay"]'
+        );
+
+    if (!overlayEl) {
+
+        return;
+    }
+
+    const now = new Date();
+
+    const defaultFrom =
+        customRangeStart ||
+        new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+    const defaultTo =
+        customRangeEnd ||
+        now;
+
+    dtPicker.from.selectedDate = startOfDay(defaultFrom);
+
+    dtPicker.from.year = defaultFrom.getFullYear();
+
+    dtPicker.from.month = defaultFrom.getMonth();
+
+    dtPicker.to.selectedDate = startOfDay(defaultTo);
+
+    dtPicker.to.year = defaultTo.getFullYear();
+
+    dtPicker.to.month = defaultTo.getMonth();
+
+    const fromTimeInput =
+        contentEl.querySelector(
+            '[data-role="dt-from-time"]'
+        );
+
+    const toTimeInput =
+        contentEl.querySelector(
+            '[data-role="dt-to-time"]'
+        );
+
+    if (fromTimeInput) {
+
+        fromTimeInput.value =
+            formatTwelveHourTime(defaultFrom);
+    }
+
+    if (toTimeInput) {
+
+        toTimeInput.value =
+            formatTwelveHourTime(defaultTo);
+    }
+
+    hideDtRangeError();
+
+    renderCalendar("from");
+
+    renderCalendar("to");
+
+    overlayEl.hidden = false;
+
+    closeDateRangeMenu();
+}
+
+
+function closeDateTimeRangeModal() {
+
+    const overlayEl =
+        contentEl.querySelector(
+            '[data-role="dt-range-overlay"]'
+        );
+
+    if (overlayEl) {
+
+        overlayEl.hidden = true;
+    }
+
+    hideDtRangeError();
+}
+
+
+/* ----------------------------------------------------------
+   renderCalendar(kind)
+
+   Builds a full 6x7 day grid for dtPicker[kind].year/month.
+   Month lengths, leap years, and starting weekday are all
+   derived from native Date arithmetic -- never hardcoded.
+---------------------------------------------------------- */
+
+function renderCalendar(kind) {
+
+    const state = dtPicker[kind];
+
+    const gridEl =
+        contentEl.querySelector(
+            '[data-role="dt-cal-grid-' + kind + '"]'
+        );
+
+    const labelEl =
+        contentEl.querySelector(
+            '[data-role="dt-cal-label-' + kind + '"]'
+        );
+
+    if (!gridEl || !labelEl) {
+
+        return;
+    }
+
+    const monthStart =
+        new Date(state.year, state.month, 1);
+
+    const daysInMonth =
+        new Date(state.year, state.month + 1, 0).getDate();
+
+    const daysInPrevMonth =
+        new Date(state.year, state.month, 0).getDate();
+
+    const firstWeekday =
+        monthStart.getDay();
+
+    labelEl.textContent =
+        monthStart.toLocaleDateString(
+            undefined,
+            { month: "long", year: "numeric" }
+        );
+
+    const today =
+        startOfDay(new Date());
+
+    const otherState =
+        dtPicker[kind === "from" ? "to" : "from"];
+
+    const rangeStart =
+        dtPicker.from.selectedDate;
+
+    const rangeEnd =
+        dtPicker.to.selectedDate;
+
+    gridEl.innerHTML = "";
+
+    const totalCells = 42;
+
+    for (let i = 0; i < totalCells; i++) {
+
+        const dayOffset =
+            i - firstWeekday + 1;
+
+        let cellYear = state.year;
+
+        let cellMonth = state.month;
+
+        let cellDay = dayOffset;
+
+        let isOutside = false;
+
+        if (dayOffset < 1) {
+
+            isOutside = true;
+
+            cellDay = daysInPrevMonth + dayOffset;
+
+            cellMonth = state.month - 1;
+
+            if (cellMonth < 0) {
+
+                cellMonth = 11;
+
+                cellYear = state.year - 1;
+            }
+
+        } else if (dayOffset > daysInMonth) {
+
+            isOutside = true;
+
+            cellDay = dayOffset - daysInMonth;
+
+            cellMonth = state.month + 1;
+
+            if (cellMonth > 11) {
+
+                cellMonth = 0;
+
+                cellYear = state.year + 1;
+            }
+        }
+
+        const cellDate =
+            new Date(cellYear, cellMonth, cellDay);
+
+        const btn =
+            document.createElement("button");
+
+        btn.type = "button";
+
+        btn.className = "dt-cal-day";
+
+        btn.textContent = String(cellDay);
+
+        if (isOutside) {
+
+            btn.classList.add("dt-cal-outside");
+        }
+
+        if (cellDate.getTime() === today.getTime()) {
+
+            btn.classList.add("dt-cal-today");
+        }
+
+        if (cellDate.getTime() > today.getTime()) {
+
+            btn.classList.add("dt-cal-future");
+
+            btn.disabled = true;
+        }
+
+        if (
+            rangeStart &&
+            rangeEnd &&
+            cellDate.getTime() > rangeStart.getTime() &&
+            cellDate.getTime() < rangeEnd.getTime()
+        ) {
+
+            btn.classList.add("dt-cal-in-range");
+        }
+
+        if (
+            state.selectedDate &&
+            cellDate.getTime() === state.selectedDate.getTime()
+        ) {
+
+            btn.classList.add("dt-cal-selected");
+        }
+
+        btn.addEventListener("click", () => {
+
+            selectCalendarDay(kind, cellDate);
+        });
+
+        gridEl.appendChild(btn);
+    }
+}
+
+
+function navCalendar(kind, delta) {
+
+    const state = dtPicker[kind];
+
+    let newMonth = state.month + delta;
+
+    let newYear = state.year;
+
+    if (newMonth < 0) {
+
+        newMonth = 11;
+
+        newYear -= 1;
+
+    } else if (newMonth > 11) {
+
+        newMonth = 0;
+
+        newYear += 1;
+    }
+
+    state.month = newMonth;
+
+    state.year = newYear;
+
+    renderCalendar(kind);
+}
+
+
+function selectCalendarDay(kind, dateObj) {
+
+    const today =
+        startOfDay(new Date());
+
+    if (dateObj.getTime() > today.getTime()) {
+
+        return;
+    }
+
+    dtPicker[kind].selectedDate = dateObj;
+
+    if (dateObj.getMonth() !== dtPicker[kind].month ||
+        dateObj.getFullYear() !== dtPicker[kind].year) {
+
+        dtPicker[kind].month = dateObj.getMonth();
+
+        dtPicker[kind].year = dateObj.getFullYear();
+    }
+
+    renderCalendar("from");
+
+    renderCalendar("to");
+
+    hideDtRangeError();
+}
+
+
+/* ----------------------------------------------------------
+   validateDateTimeRange() / applyDateTimeRange()
+---------------------------------------------------------- */
+
+function validateDateTimeRange() {
+
+    const fromTimeInput =
+        contentEl.querySelector(
+            '[data-role="dt-from-time"]'
+        );
+
+    const toTimeInput =
+        contentEl.querySelector(
+            '[data-role="dt-to-time"]'
+        );
+
+    if (!dtPicker.from.selectedDate || !dtPicker.to.selectedDate) {
+
+        return {
+            valid: false,
+            message: "Select both a start date and an end date."
+        };
+    }
+
+    const fromTimeParsed =
+        parseTwelveHourTime(fromTimeInput ? fromTimeInput.value : "");
+
+    const toTimeParsed =
+        parseTwelveHourTime(toTimeInput ? toTimeInput.value : "");
+
+    if (!fromTimeParsed || !toTimeParsed) {
+
+        return {
+            valid: false,
+            message: "Enter times as HH:MM AM/PM, for example 08:30 AM."
+        };
+    }
+
+    const start = new Date(
+        dtPicker.from.selectedDate.getFullYear(),
+        dtPicker.from.selectedDate.getMonth(),
+        dtPicker.from.selectedDate.getDate(),
+        fromTimeParsed.hours,
+        fromTimeParsed.minutes,
+        0,
+        0
+    );
+
+    const end = new Date(
+        dtPicker.to.selectedDate.getFullYear(),
+        dtPicker.to.selectedDate.getMonth(),
+        dtPicker.to.selectedDate.getDate(),
+        toTimeParsed.hours,
+        toTimeParsed.minutes,
+        0,
+        0
+    );
+
+    if (start.getTime() === end.getTime()) {
+
+        return {
+            valid: false,
+            message: "Start and end date/time cannot be the same."
+        };
+    }
+
+    if (start.getTime() > end.getTime()) {
+
+        return {
+            valid: false,
+            message: "Start date/time must be before end date/time."
+        };
+    }
+
+    const now = new Date();
+
+    if (end.getTime() > now.getTime()) {
+
+        return {
+            valid: false,
+            message: "End date/time cannot be in the future."
+        };
+    }
+
+    return {
+        valid: true,
+        start,
+        end
+    };
+}
+
+
+function applyDateTimeRange() {
+
+    const result =
+        validateDateTimeRange();
+
+    if (!result.valid) {
+
+        showDtRangeError(result.message);
+
+        return false;
+    }
+
+    customRangeStart = result.start;
+
+    customRangeEnd = result.end;
+
+    selectedTimeRange = "custom-date";
+
+    applyTimeRangeCore();
+
+    closeDateTimeRangeModal();
+
+    closeDateRangeMenu();
+
+    return true;
+}
+
+
+/* ----------------------------------------------------------
+   wireDateRangeControls()
+---------------------------------------------------------- */
+
+function wireDateRangeControls() {
+
+    const dropdownEl =
+        contentEl.querySelector(
+            '[data-role="date-range-dropdown"]'
+        );
+
+    const triggerEl =
+        contentEl.querySelector(
+            '[data-role="date-range-trigger"]'
+        );
+
+    const menuEl =
+        contentEl.querySelector(
+            '[data-role="date-range-menu"]'
+        );
+
+    const overlayEl =
+        contentEl.querySelector(
+            '[data-role="dt-range-overlay"]'
+        );
+
+    const cancelBtn =
+        contentEl.querySelector(
+            '[data-role="dt-range-cancel"]'
+        );
+
+    const applyBtn =
+        contentEl.querySelector(
+            '[data-role="dt-range-apply"]'
+        );
+
+
+    if (triggerEl && dropdownEl && menuEl) {
+
+        triggerEl.addEventListener("click", (event) => {
+
+            event.stopPropagation();
+
+            const isOpen =
+                dropdownEl.getAttribute("data-open") === "true";
+
+            closeTimeRangeMenu();
+
+            if (isOpen) {
+
+                closeDateRangeMenu();
+
+            } else {
+
+                dropdownEl.setAttribute("data-open", "true");
+
+                menuEl.hidden = false;
+
+                triggerEl.setAttribute("aria-expanded", "true");
+            }
+        });
+    }
+
+
+    if (menuEl) {
+
+        menuEl.addEventListener("click", (event) => {
+
+            const option =
+                event.target.closest(".dropdown-option");
+
+            if (!option) {
+
+                return;
+            }
+
+            applyDateRange(option.dataset.dateRange);
+        });
+    }
+
+
+    document.addEventListener("click", (event) => {
+
+        if (dropdownEl && !dropdownEl.contains(event.target)) {
+
+            closeDateRangeMenu();
+        }
+    });
+
+
+    document.addEventListener("keydown", (event) => {
+
+        if (event.key !== "Escape") {
+
+            return;
+        }
+
+        closeDateRangeMenu();
+
+        if (overlayEl && !overlayEl.hidden) {
+
+            closeDateTimeRangeModal();
+        }
+    });
+
+
+    ["from", "to"].forEach((kind) => {
+
+        const prevBtn =
+            contentEl.querySelector(
+                '[data-role="dt-cal-prev-' + kind + '"]'
+            );
+
+        const nextBtn =
+            contentEl.querySelector(
+                '[data-role="dt-cal-next-' + kind + '"]'
+            );
+
+        if (prevBtn) {
+
+            prevBtn.addEventListener("click", () => {
+
+                navCalendar(kind, -1);
+            });
+        }
+
+        if (nextBtn) {
+
+            nextBtn.addEventListener("click", () => {
+
+                navCalendar(kind, 1);
+            });
+        }
+    });
+
+
+    if (cancelBtn) {
+
+        cancelBtn.addEventListener("click", () => {
+
+            closeDateTimeRangeModal();
+        });
+    }
+
+
+    if (applyBtn) {
+
+        applyBtn.addEventListener("click", () => {
+
+            applyDateTimeRange();
+        });
+    }
 }
 
 

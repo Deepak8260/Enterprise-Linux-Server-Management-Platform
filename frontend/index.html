@@ -769,6 +769,67 @@
 
             <div class="control-group">
 
+                <span class="control-label" id="date-range-label-id">
+                    Date Range
+                </span>
+
+                <div
+                    class="dropdown"
+                    data-role="date-range-dropdown"
+                >
+
+                    <button
+                        type="button"
+                        class="dropdown-trigger"
+                        data-role="date-range-trigger"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-labelledby="date-range-label-id"
+                    >
+                        <span data-role="date-range-trigger-label">Live</span>
+
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+
+                    <div
+                        class="dropdown-menu"
+                        data-role="date-range-menu"
+                        role="listbox"
+                        aria-label="Date range"
+                        hidden
+                    >
+
+                        <button type="button" class="dropdown-option" data-date-range="1d" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Last 1 Day</span>
+                        </button>
+
+                        <button type="button" class="dropdown-option" data-date-range="3d" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Last 3 Days</span>
+                        </button>
+
+                        <button type="button" class="dropdown-option" data-date-range="5d" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Last 5 Days</span>
+                        </button>
+
+                        <button type="button" class="dropdown-option" data-date-range="custom-date" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Custom</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="control-group">
+
                 <label class="control-label" for="refresh-interval-select">
                     Refresh Interval
                 </label>
@@ -800,6 +861,25 @@
                 </svg>
                 <span data-role="live-pause-label">Pause Live</span>
             </button>
+
+        </div>
+
+
+
+        <!-- ==================================================
+             APPLIED RANGE SUMMARY
+        =================================================== -->
+
+        <div class="range-summary-bar" data-role="range-summary-bar" hidden>
+
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
+            </svg>
+
+            <span data-role="range-summary-text">Live</span>
+
+            <span class="range-summary-duration" data-role="range-summary-duration"></span>
 
         </div>
 
@@ -881,6 +961,146 @@
 
 
         <!-- ==================================================
+             CUSTOM DATE + TIME RANGE MODAL
+        =================================================== -->
+
+        <div
+            class="dt-range-overlay"
+            data-role="dt-range-overlay"
+            hidden
+        >
+
+            <div
+                class="dt-range-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="dt-range-title"
+            >
+
+                <h3 id="dt-range-title">
+                    Custom Date &amp; Time Range
+                </h3>
+
+                <p class="custom-range-hint">
+                    Pick a start and end date, then set the exact time for each.
+                </p>
+
+                <div class="dt-range-columns">
+
+                    <!-- FROM -->
+
+                    <div class="dt-range-column">
+
+                        <span class="dt-range-column-label">From</span>
+
+                        <div class="dt-calendar" data-role="dt-calendar-from">
+
+                            <div class="dt-calendar-header">
+
+                                <button type="button" class="dt-cal-nav" data-role="dt-cal-prev-from" aria-label="Previous month">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                                </button>
+
+                                <span class="dt-cal-month-label" data-role="dt-cal-label-from"></span>
+
+                                <button type="button" class="dt-cal-nav" data-role="dt-cal-next-from" aria-label="Next month">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                                </button>
+
+                            </div>
+
+                            <div class="dt-calendar-weekdays">
+                                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                            </div>
+
+                            <div class="dt-calendar-grid" data-role="dt-cal-grid-from" role="grid" aria-label="Start date"></div>
+
+                        </div>
+
+                        <label class="custom-range-field dt-time-field">
+                            Time
+                            <input
+                                type="text"
+                                class="custom-range-input"
+                                data-role="dt-from-time"
+                                placeholder="08:30 AM"
+                                autocomplete="off"
+                            >
+                        </label>
+
+                    </div>
+
+
+                    <!-- TO -->
+
+                    <div class="dt-range-column">
+
+                        <span class="dt-range-column-label">To</span>
+
+                        <div class="dt-calendar" data-role="dt-calendar-to">
+
+                            <div class="dt-calendar-header">
+
+                                <button type="button" class="dt-cal-nav" data-role="dt-cal-prev-to" aria-label="Previous month">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                                </button>
+
+                                <span class="dt-cal-month-label" data-role="dt-cal-label-to"></span>
+
+                                <button type="button" class="dt-cal-nav" data-role="dt-cal-next-to" aria-label="Next month">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                                </button>
+
+                            </div>
+
+                            <div class="dt-calendar-weekdays">
+                                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                            </div>
+
+                            <div class="dt-calendar-grid" data-role="dt-cal-grid-to" role="grid" aria-label="End date"></div>
+
+                        </div>
+
+                        <label class="custom-range-field dt-time-field">
+                            Time
+                            <input
+                                type="text"
+                                class="custom-range-input"
+                                data-role="dt-to-time"
+                                placeholder="11:00 AM"
+                                autocomplete="off"
+                            >
+                        </label>
+
+                    </div>
+
+                </div>
+
+                <p
+                    class="custom-range-error"
+                    data-role="dt-range-error"
+                    hidden
+                ></p>
+
+                <div class="custom-range-actions">
+
+                    <button type="button" class="btn-secondary" data-role="dt-range-cancel">
+                        Cancel
+                    </button>
+
+                    <button type="button" class="btn-primary" data-role="dt-range-apply">
+                        Apply
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ==================================================
              CPU MAIN CARD
         =================================================== -->
 
@@ -940,7 +1160,7 @@
                 </div>
 
 
-                <div class="chart-subtitle">
+                <div class="chart-subtitle" data-role="chart-resolution-label">
 
                     Live monitoring •
                     5 second interval
@@ -1154,6 +1374,33 @@
                     0.0%
 
                 </span>
+
+                <span class="cpu-stat-timestamp" data-role="peak-cpu-time"></span>
+
+            </div>
+
+
+
+            <!-- Minimum -->
+
+            <div class="cpu-stat">
+
+                <span class="cpu-stat-label">
+
+                    Minimum
+
+                </span>
+
+
+                <span class="cpu-stat-value"
+                    data-role="minimum-cpu"
+                >
+
+                    0.0%
+
+                </span>
+
+                <span class="cpu-stat-timestamp" data-role="minimum-cpu-time"></span>
 
             </div>
 
