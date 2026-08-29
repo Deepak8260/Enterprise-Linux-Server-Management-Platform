@@ -695,6 +695,192 @@
 
 
         <!-- ==================================================
+             TIME RANGE / REFRESH CONTROLS
+        =================================================== -->
+
+        <div class="cpu-controls-bar">
+
+            <div class="control-group">
+
+                <span class="control-label" id="time-range-label-id">
+                    Time Range
+                </span>
+
+                <div
+                    class="dropdown"
+                    data-role="time-range-dropdown"
+                >
+
+                    <button
+                        type="button"
+                        class="dropdown-trigger"
+                        data-role="time-range-trigger"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-labelledby="time-range-label-id"
+                    >
+                        <span data-role="time-range-trigger-label">Live</span>
+
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+
+                    <div
+                        class="dropdown-menu"
+                        data-role="time-range-menu"
+                        role="listbox"
+                        aria-label="Time range"
+                        hidden
+                    >
+
+                        <button type="button" class="dropdown-option" data-range="live" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Live</span>
+                            <span class="dropdown-badge">5 sec</span>
+                        </button>
+
+                        <button type="button" class="dropdown-option" data-range="1h" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Last 1 Hour</span>
+                        </button>
+
+                        <button type="button" class="dropdown-option" data-range="5h" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Last 5 Hours</span>
+                        </button>
+
+                        <button type="button" class="dropdown-option" data-range="12h" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Last 12 Hours</span>
+                        </button>
+
+                        <button type="button" class="dropdown-option" data-range="custom" role="option">
+                            <span class="dropdown-check">✓</span>
+                            <span class="dropdown-option-label">Custom</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="control-group">
+
+                <label class="control-label" for="refresh-interval-select">
+                    Refresh Interval
+                </label>
+
+                <select
+                    id="refresh-interval-select"
+                    class="control-select"
+                    data-role="refresh-interval-select"
+                >
+                    <option value="1000">1 sec</option>
+                    <option value="5000" selected>5 sec</option>
+                    <option value="10000">10 sec</option>
+                    <option value="30000">30 sec</option>
+                    <option value="60000">1 min</option>
+                </select>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="live-toggle-btn"
+                data-role="live-pause-btn"
+                aria-pressed="false"
+            >
+                <svg data-role="live-pause-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <rect x="6" y="5" width="4" height="14" rx="1"/>
+                    <rect x="14" y="5" width="4" height="14" rx="1"/>
+                </svg>
+                <span data-role="live-pause-label">Pause Live</span>
+            </button>
+
+        </div>
+
+
+
+        <!-- ==================================================
+             CUSTOM TIME RANGE MODAL
+        =================================================== -->
+
+        <div
+            class="custom-range-overlay"
+            data-role="custom-range-overlay"
+            hidden
+        >
+
+            <div
+                class="custom-range-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="custom-range-title"
+            >
+
+                <h3 id="custom-range-title">
+                    Custom Time Range
+                </h3>
+
+                <p class="custom-range-hint">
+                    Enter times for today using 12-hour format.
+                </p>
+
+                <div class="custom-range-fields">
+
+                    <label class="custom-range-field">
+                        From
+                        <input
+                            type="text"
+                            class="custom-range-input"
+                            data-role="custom-from-input"
+                            placeholder="08:30 AM"
+                            autocomplete="off"
+                        >
+                    </label>
+
+                    <label class="custom-range-field">
+                        To
+                        <input
+                            type="text"
+                            class="custom-range-input"
+                            data-role="custom-to-input"
+                            placeholder="11:45 AM"
+                            autocomplete="off"
+                        >
+                    </label>
+
+                </div>
+
+                <p
+                    class="custom-range-error"
+                    data-role="custom-range-error"
+                    hidden
+                ></p>
+
+                <div class="custom-range-actions">
+
+                    <button type="button" class="btn-secondary" data-role="custom-range-cancel">
+                        Cancel
+                    </button>
+
+                    <button type="button" class="btn-primary" data-role="custom-range-apply">
+                        Apply
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ==================================================
              CPU MAIN CARD
         =================================================== -->
 
@@ -781,6 +967,15 @@
                 <canvas
                     data-role="cpu-chart"
                 ></canvas>
+
+
+                <div
+                    class="chart-empty-state"
+                    data-role="chart-empty-state"
+                    hidden
+                >
+                    No CPU readings available for the selected time range.
+                </div>
 
 
             </div>

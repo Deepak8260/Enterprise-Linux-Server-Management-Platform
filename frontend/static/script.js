@@ -115,11 +115,41 @@ let chartWindowStart = 0;
 let followLive = true;
 
 
+/*
+ * ==========================================================
+ * TIME RANGE FILTER STATE
+ * ==========================================================
+ *
+ * selectedTimeRange : "live" | "1h" | "5h" | "12h" | "custom"
+ * customRangeStart  : Date | null (only set for "custom")
+ * customRangeEnd    : Date | null (only set for "custom")
+ * isPaused          : true when live data collection is paused
+ * refreshIntervalMs : how often /api/cpu is polled
+ * filteredReadings  : cpuHistory filtered down to the readings
+ *                      that belong to the currently selected
+ *                      time range. The chart, KPIs, and the
+ *                      scrollbar are always derived from this
+ *                      array -- never from cpuHistory directly.
+ */
+
+let selectedTimeRange = "live";
+
+let customRangeStart = null;
+
+let customRangeEnd = null;
+
+let isPaused = false;
+
+let refreshIntervalMs = 5000;
+
+let filteredReadings = [];
+
+
 /* ==========================================================
    CONSTANTS
 ========================================================== */
 
-const CPU_REFRESH_INTERVAL = 5000;
+const CPU_REFRESH_INTERVAL_DEFAULT = 5000;
 
 const WARNING_THRESHOLD = 50;
 
@@ -323,6 +353,8 @@ async function renderCpuPage() {
 
     destroyCpuChart();
 
+    resetTimeRangeState();
+
     renderTemplate(
         "template-cpu"
     );
@@ -335,6 +367,15 @@ async function renderCpuPage() {
      */
 
     await loadCpuHistoryFromServer();
+
+
+    /*
+     * Compute the initial filtered view
+     * ("Live" = every reading) before the
+     * chart is created.
+     */
+
+    filterReadingsByTime();
 
 
     /*
@@ -354,6 +395,15 @@ async function renderCpuPage() {
 
 
     /*
+     * Wire up the Time Range dropdown,
+     * Refresh Interval select, Pause/Resume
+     * button and the Custom Range modal.
+     */
+
+    wireTimeRangeControls();
+
+
+    /*
      * Get the latest CPU value immediately.
      */
 
@@ -361,14 +411,19 @@ async function renderCpuPage() {
 
 
     /*
-     * Continue refreshing every 5 seconds.
+     * Continue refreshing at the currently
+     * selected interval, unless the user has
+     * paused live monitoring.
      */
 
-    cpuRefreshTimer =
-        setInterval(
-            loadCpuUsage,
-            CPU_REFRESH_INTERVAL
-        );
+    if (!isPaused) {
+
+        cpuRefreshTimer =
+            setInterval(
+                loadCpuUsage,
+                refreshIntervalMs
+            );
+    }
 }
 
 
@@ -517,6 +572,18 @@ async function loadCpuUsage() {
 
 
         /*
+         * Re-apply the currently selected time
+         * range (Live / 1h / 5h / 12h / Custom)
+         * now that a new reading exists. This
+         * keeps relative ranges ("Last 1 Hour")
+         * sliding forward in real time without
+         * ever discarding raw history.
+         */
+
+        filterReadingsByTime();
+
+
+        /*
          * Update the large current value.
          */
 
@@ -538,16 +605,14 @@ async function loadCpuUsage() {
          * Update graph.
          */
 
-        updateCpuChart();
+        updateChart();
 
 
         /*
          * Update statistics cards.
          */
 
-        updateCpuStatistics(
-            safeCpu
-        );
+        updateKPIs();
 
 
     }
@@ -826,7 +891,7 @@ function getMaxChartWindowStart() {
 
     return Math.max(
         0,
-        cpuHistory.length -
+        filteredReadings.length -
         CHART_WINDOW_SIZE
     );
 }
@@ -854,7 +919,7 @@ function getChartWindow() {
     }
 
 
-    return cpuHistory.slice(
+    return filteredReadings.slice(
         chartWindowStart,
         chartWindowStart +
         CHART_WINDOW_SIZE
@@ -1481,7 +1546,9 @@ function updateChartScrubberLabel(
     ) {
 
         labelEl.textContent =
-            "No data yet";
+            cpuHistory.length === 0
+                ? "No data yet"
+                : "No CPU readings available for the selected time range.";
 
         return;
     }
@@ -1500,8 +1567,10 @@ function updateChartScrubberLabel(
         " – " +
         formatTime(last) +
         " (" +
-        cpuHistory.length +
-        " readings total)";
+        filteredReadings.length +
+        " reading" +
+        (filteredReadings.length === 1 ? "" : "s") +
+        " in range)";
 }
 
 
@@ -1515,6 +1584,35 @@ function renderChartWindow() {
 
     const windowPoints =
         getChartWindow();
+
+
+    const emptyStateEl =
+        contentEl.querySelector(
+            '[data-role="chart-empty-state"]'
+        );
+
+    const canvasEl =
+        contentEl.querySelector(
+            '[data-role="cpu-chart"]'
+        );
+
+    const hasRangeData =
+        filteredReadings.length > 0;
+
+    if (emptyStateEl) {
+
+        emptyStateEl.hidden =
+            hasRangeData;
+    }
+
+    if (canvasEl) {
+
+        canvasEl.style.visibility =
+            hasRangeData
+                ? "visible"
+                : "hidden";
+    }
+
 
     cpuChart.data.labels =
         windowPoints.map(
@@ -1978,9 +2076,7 @@ function wireCpuChartScrubber() {
    CPU STATISTICS
 ========================================================== */
 
-function updateCpuStatistics(
-    currentCpu
-) {
+function updateCpuStatistics() {
 
     const currentEl =
         contentEl.querySelector(
@@ -2006,71 +2102,957 @@ function updateCpuStatistics(
         );
 
 
-    if (currentEl) {
-
-        currentEl.textContent =
-            currentCpu.toFixed(1) +
-            "%";
-    }
-
+    const readingsCount =
+        filteredReadings.length;
 
     if (readingsEl) {
 
         readingsEl.textContent =
-            cpuHistory.length;
+            String(readingsCount);
     }
 
 
-    if (cpuHistory.length > 0) {
+    /*
+     * No readings inside the selected range:
+     * show a clean "--" placeholder instead
+     * of NaN / undefined, and never crash.
+     */
 
-        const values =
-            cpuHistory.map(
-                item =>
-                    item.value
-            );
+    if (readingsCount === 0) {
 
+        if (currentEl) {
 
-        const total =
-            values.reduce(
-                (
-                    sum,
-                    value
-                ) =>
-                    sum + value,
-                0
-            );
-
-
-        const average =
-            total /
-            values.length;
-
-
-        const peak =
-            Math.max(
-                ...values
-            );
-
+            currentEl.textContent = "--%";
+        }
 
         if (averageEl) {
 
-            averageEl.textContent =
-                average.toFixed(
-                    1
-                ) +
-                "%";
+            averageEl.textContent = "--%";
         }
-
 
         if (peakEl) {
 
-            peakEl.textContent =
-                peak.toFixed(
-                    1
-                ) +
-                "%";
+            peakEl.textContent = "--%";
+        }
+
+        return;
+    }
+
+
+    const values =
+        filteredReadings.map(
+            item =>
+                item.value
+        );
+
+
+    const total =
+        values.reduce(
+            (
+                sum,
+                value
+            ) =>
+                sum + value,
+            0
+        );
+
+
+    const average =
+        total /
+        values.length;
+
+
+    const peak =
+        Math.max(
+            ...values
+        );
+
+
+    const latest =
+        filteredReadings[
+            filteredReadings.length - 1
+        ].value;
+
+
+    if (currentEl) {
+
+        currentEl.textContent =
+            latest.toFixed(1) +
+            "%";
+    }
+
+
+    if (averageEl) {
+
+        averageEl.textContent =
+            average.toFixed(
+                1
+            ) +
+            "%";
+    }
+
+
+    if (peakEl) {
+
+        peakEl.textContent =
+            peak.toFixed(
+                1
+            ) +
+            "%";
+    }
+}
+
+
+/* ==========================================================
+   TIME RANGE FILTER MODULE
+========================================================== */
+
+/*
+ * Human-readable label for every selectable range.
+ */
+
+const TIME_RANGE_LABELS = {
+
+    live: "Live",
+
+    "1h": "Last 1 Hour",
+
+    "5h": "Last 5 Hours",
+
+    "12h": "Last 12 Hours",
+
+    custom: "Custom"
+};
+
+
+/*
+ * How many milliseconds each relative range covers.
+ * "live" and "custom" are handled separately.
+ */
+
+const TIME_RANGE_DURATIONS_MS = {
+
+    "1h": 60 * 60 * 1000,
+
+    "5h": 5 * 60 * 60 * 1000,
+
+    "12h": 12 * 60 * 60 * 1000
+};
+
+
+/* ----------------------------------------------------------
+   RESET (called every time the CPU page is (re)loaded)
+---------------------------------------------------------- */
+
+function resetTimeRangeState() {
+
+    selectedTimeRange = "live";
+
+    customRangeStart = null;
+
+    customRangeEnd = null;
+
+    isPaused = false;
+
+    refreshIntervalMs = CPU_REFRESH_INTERVAL_DEFAULT;
+
+    filteredReadings = [];
+}
+
+
+/* ----------------------------------------------------------
+   getTimeRange()
+
+   Dynamically computes the {start, end} Date bounds for the
+   currently selected range. Never hardcoded -- "now" is
+   always read fresh.
+---------------------------------------------------------- */
+
+function getTimeRange() {
+
+    if (selectedTimeRange === "live") {
+
+        return {
+            start: null,
+            end: null
+        };
+    }
+
+
+    if (selectedTimeRange === "custom") {
+
+        return {
+            start: customRangeStart,
+            end: customRangeEnd
+        };
+    }
+
+
+    const durationMs =
+        TIME_RANGE_DURATIONS_MS[selectedTimeRange];
+
+    const end = new Date();
+
+    const start =
+        new Date(end.getTime() - durationMs);
+
+    return {
+        start,
+        end
+    };
+}
+
+
+/* ----------------------------------------------------------
+   filterReadingsByTime()
+
+   Filters cpuHistory (the full, never-deleted dataset) down
+   to filteredReadings -- the readings that belong to the
+   currently selected time range. This is the ONLY array the
+   chart, KPIs and scrollbar ever read from.
+---------------------------------------------------------- */
+
+function filterReadingsByTime() {
+
+    const range =
+        getTimeRange();
+
+
+    if (range.start === null || range.end === null) {
+
+        /*
+         * "Live" (or an incomplete custom range):
+         * every collected reading is in view.
+         */
+
+        filteredReadings =
+            cpuHistory.slice();
+
+        return filteredReadings;
+    }
+
+
+    filteredReadings =
+        cpuHistory.filter(
+            (reading) =>
+                reading.time.getTime() >= range.start.getTime() &&
+                reading.time.getTime() <= range.end.getTime()
+        );
+
+    return filteredReadings;
+}
+
+
+/* ----------------------------------------------------------
+   updateChart() / updateKPIs() / updateRangeNavigator() /
+   updateRangeSummary()
+
+   Thin, clearly-named wrappers around the existing render
+   pipeline so every part of the UI can be refreshed the same
+   way after any range change.
+---------------------------------------------------------- */
+
+function updateChart() {
+
+    updateCpuChart();
+}
+
+
+function updateKPIs() {
+
+    updateCpuStatistics();
+}
+
+
+function updateRangeNavigator() {
+
+    updateChartScrollbarUI();
+}
+
+
+function updateRangeSummary() {
+
+    updateChartScrubberLabel(
+        getChartWindow()
+    );
+}
+
+
+/* ----------------------------------------------------------
+   setLiveMode() / pauseLive() / resumeLive()
+
+   setLiveMode() controls whether the CHART follows the
+   newest reading (the existing "auto-scroll" behaviour).
+   pauseLive()/resumeLive() control whether new readings are
+   being COLLECTED at all -- a separate, real pause of live
+   monitoring, not just a view change.
+---------------------------------------------------------- */
+
+function setLiveMode(isLive) {
+
+    followLive = Boolean(isLive);
+
+    if (followLive) {
+
+        chartWindowStart =
+            getMaxChartWindowStart();
+    }
+
+    renderChartWindow();
+
+    updateRangeNavigator();
+}
+
+
+function pauseLive() {
+
+    if (isPaused) {
+
+        return;
+    }
+
+    isPaused = true;
+
+    clearCpuRefreshTimer();
+
+    updateLivePauseButtonUI();
+}
+
+
+function resumeLive() {
+
+    if (!isPaused) {
+
+        return;
+    }
+
+    isPaused = false;
+
+    /*
+     * Pick up any missed reading immediately,
+     * then continue on the configured interval.
+     */
+
+    loadCpuUsage();
+
+    clearCpuRefreshTimer();
+
+    cpuRefreshTimer =
+        setInterval(
+            loadCpuUsage,
+            refreshIntervalMs
+        );
+
+    updateLivePauseButtonUI();
+}
+
+
+function updateLivePauseButtonUI() {
+
+    const btn =
+        contentEl.querySelector(
+            '[data-role="live-pause-btn"]'
+        );
+
+    const labelEl =
+        contentEl.querySelector(
+            '[data-role="live-pause-label"]'
+        );
+
+    if (!btn || !labelEl) {
+
+        return;
+    }
+
+    btn.setAttribute(
+        "aria-pressed",
+        isPaused ? "true" : "false"
+    );
+
+    labelEl.textContent =
+        isPaused ? "Resume Live" : "Pause Live";
+}
+
+
+/* ----------------------------------------------------------
+   applyTimeRange(rangeKey)
+
+   Applies a non-custom range selection (or opens the custom
+   picker) and refreshes every dependent piece of UI.
+---------------------------------------------------------- */
+
+function applyTimeRangeCore() {
+
+    filterReadingsByTime();
+
+    followLive = true;
+
+    chartWindowStart =
+        getMaxChartWindowStart();
+
+    updateChart();
+
+    updateKPIs();
+
+    updateRangeNavigator();
+
+    updateRangeSummary();
+
+    updateTimeRangeDropdownUI();
+}
+
+
+function applyTimeRange(rangeKey) {
+
+    if (rangeKey === "custom") {
+
+        openCustomRangeModal();
+
+        return;
+    }
+
+
+    selectedTimeRange = rangeKey;
+
+    customRangeStart = null;
+
+    customRangeEnd = null;
+
+    applyTimeRangeCore();
+
+    closeTimeRangeMenu();
+}
+
+
+/* ----------------------------------------------------------
+   Custom range: parsing, validation, apply
+---------------------------------------------------------- */
+
+function parseTwelveHourTime(rawValue) {
+
+    if (typeof rawValue !== "string") {
+
+        return null;
+    }
+
+    const match =
+        rawValue
+            .trim()
+            .match(/^(\d{1,2}):(\d{2})\s*([APap][Mm])$/);
+
+    if (!match) {
+
+        return null;
+    }
+
+    let hours = Number(match[1]);
+
+    const minutes = Number(match[2]);
+
+    const meridiem = match[3].toUpperCase();
+
+    if (
+        hours < 1 || hours > 12 ||
+        minutes < 0 || minutes > 59
+    ) {
+
+        return null;
+    }
+
+    if (meridiem === "AM") {
+
+        hours = (hours === 12) ? 0 : hours;
+
+    } else {
+
+        hours = (hours === 12) ? 12 : hours + 12;
+    }
+
+    return {
+        hours,
+        minutes
+    };
+}
+
+
+function validateCustomTime(fromStr, toStr) {
+
+    const fromRaw =
+        (fromStr || "").trim();
+
+    const toRaw =
+        (toStr || "").trim();
+
+    if (!fromRaw || !toRaw) {
+
+        return {
+            valid: false,
+            message: "Both From and To times are required."
+        };
+    }
+
+    const fromParsed =
+        parseTwelveHourTime(fromRaw);
+
+    const toParsed =
+        parseTwelveHourTime(toRaw);
+
+    if (!fromParsed || !toParsed) {
+
+        return {
+            valid: false,
+            message: "Enter times as HH:MM AM/PM, for example 08:30 AM."
+        };
+    }
+
+    const now = new Date();
+
+    const start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        fromParsed.hours,
+        fromParsed.minutes,
+        0,
+        0
+    );
+
+    const end = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        toParsed.hours,
+        toParsed.minutes,
+        0,
+        0
+    );
+
+    if (start.getTime() === end.getTime()) {
+
+        return {
+            valid: false,
+            message: "Start and end time cannot be the same."
+        };
+    }
+
+    if (start.getTime() > end.getTime()) {
+
+        return {
+            valid: false,
+            message: "Start time must be before end time."
+        };
+    }
+
+    if (end.getTime() > now.getTime()) {
+
+        return {
+            valid: false,
+            message: "End time cannot be in the future."
+        };
+    }
+
+    return {
+        valid: true,
+        start,
+        end
+    };
+}
+
+
+function applyCustomTimeRange(fromStr, toStr) {
+
+    const result =
+        validateCustomTime(fromStr, toStr);
+
+    if (!result.valid) {
+
+        showCustomRangeError(result.message);
+
+        return false;
+    }
+
+    customRangeStart = result.start;
+
+    customRangeEnd = result.end;
+
+    selectedTimeRange = "custom";
+
+    applyTimeRangeCore();
+
+    closeCustomRangeModal();
+
+    closeTimeRangeMenu();
+
+    return true;
+}
+
+
+/* ----------------------------------------------------------
+   Time Range dropdown + Custom modal wiring
+---------------------------------------------------------- */
+
+function updateTimeRangeDropdownUI() {
+
+    const triggerLabelEl =
+        contentEl.querySelector(
+            '[data-role="time-range-trigger-label"]'
+        );
+
+    if (triggerLabelEl) {
+
+        if (selectedTimeRange === "custom" && customRangeStart && customRangeEnd) {
+
+            triggerLabelEl.textContent =
+                "Custom (" +
+                formatTime(customRangeStart) +
+                " – " +
+                formatTime(customRangeEnd) +
+                ")";
+
+        } else {
+
+            triggerLabelEl.textContent =
+                TIME_RANGE_LABELS[selectedTimeRange] ||
+                "Live";
         }
     }
+
+
+    contentEl
+        .querySelectorAll(".dropdown-option")
+        .forEach((option) => {
+
+            option.classList.toggle(
+                "active",
+                option.dataset.range === selectedTimeRange
+            );
+        });
+}
+
+
+function closeTimeRangeMenu() {
+
+    const dropdownEl =
+        contentEl.querySelector(
+            '[data-role="time-range-dropdown"]'
+        );
+
+    const menuEl =
+        contentEl.querySelector(
+            '[data-role="time-range-menu"]'
+        );
+
+    const triggerEl =
+        contentEl.querySelector(
+            '[data-role="time-range-trigger"]'
+        );
+
+    if (dropdownEl) {
+
+        dropdownEl.removeAttribute("data-open");
+    }
+
+    if (menuEl) {
+
+        menuEl.hidden = true;
+    }
+
+    if (triggerEl) {
+
+        triggerEl.setAttribute("aria-expanded", "false");
+    }
+}
+
+
+function openCustomRangeModal() {
+
+    const overlayEl =
+        contentEl.querySelector(
+            '[data-role="custom-range-overlay"]'
+        );
+
+    const fromInput =
+        contentEl.querySelector(
+            '[data-role="custom-from-input"]'
+        );
+
+    const toInput =
+        contentEl.querySelector(
+            '[data-role="custom-to-input"]'
+        );
+
+    if (!overlayEl) {
+
+        return;
+    }
+
+    if (fromInput && customRangeStart) {
+
+        fromInput.value =
+            formatTime(customRangeStart);
+    }
+
+    if (toInput && customRangeEnd) {
+
+        toInput.value =
+            formatTime(customRangeEnd);
+    }
+
+    hideCustomRangeError();
+
+    overlayEl.hidden = false;
+
+    closeTimeRangeMenu();
+
+    if (fromInput) {
+
+        fromInput.focus();
+    }
+}
+
+
+function closeCustomRangeModal() {
+
+    const overlayEl =
+        contentEl.querySelector(
+            '[data-role="custom-range-overlay"]'
+        );
+
+    if (overlayEl) {
+
+        overlayEl.hidden = true;
+    }
+
+    hideCustomRangeError();
+}
+
+
+function showCustomRangeError(message) {
+
+    const errorEl =
+        contentEl.querySelector(
+            '[data-role="custom-range-error"]'
+        );
+
+    if (!errorEl) {
+
+        return;
+    }
+
+    errorEl.textContent = message;
+
+    errorEl.hidden = false;
+}
+
+
+function hideCustomRangeError() {
+
+    const errorEl =
+        contentEl.querySelector(
+            '[data-role="custom-range-error"]'
+        );
+
+    if (!errorEl) {
+
+        return;
+    }
+
+    errorEl.hidden = true;
+
+    errorEl.textContent = "";
+}
+
+
+function wireTimeRangeControls() {
+
+    const dropdownEl =
+        contentEl.querySelector(
+            '[data-role="time-range-dropdown"]'
+        );
+
+    const triggerEl =
+        contentEl.querySelector(
+            '[data-role="time-range-trigger"]'
+        );
+
+    const menuEl =
+        contentEl.querySelector(
+            '[data-role="time-range-menu"]'
+        );
+
+    const refreshSelectEl =
+        contentEl.querySelector(
+            '[data-role="refresh-interval-select"]'
+        );
+
+    const livePauseBtn =
+        contentEl.querySelector(
+            '[data-role="live-pause-btn"]'
+        );
+
+    const customCancelBtn =
+        contentEl.querySelector(
+            '[data-role="custom-range-cancel"]'
+        );
+
+    const customApplyBtn =
+        contentEl.querySelector(
+            '[data-role="custom-range-apply"]'
+        );
+
+    const customFromInput =
+        contentEl.querySelector(
+            '[data-role="custom-from-input"]'
+        );
+
+    const customToInput =
+        contentEl.querySelector(
+            '[data-role="custom-to-input"]'
+        );
+
+    const overlayEl =
+        contentEl.querySelector(
+            '[data-role="custom-range-overlay"]'
+        );
+
+
+    if (triggerEl && dropdownEl && menuEl) {
+
+        triggerEl.addEventListener("click", (event) => {
+
+            event.stopPropagation();
+
+            const isOpen =
+                dropdownEl.getAttribute("data-open") === "true";
+
+            if (isOpen) {
+
+                closeTimeRangeMenu();
+
+            } else {
+
+                dropdownEl.setAttribute("data-open", "true");
+
+                menuEl.hidden = false;
+
+                triggerEl.setAttribute("aria-expanded", "true");
+            }
+        });
+    }
+
+
+    if (menuEl) {
+
+        menuEl.addEventListener("click", (event) => {
+
+            const option =
+                event.target.closest(".dropdown-option");
+
+            if (!option) {
+
+                return;
+            }
+
+            applyTimeRange(option.dataset.range);
+        });
+    }
+
+
+    /*
+     * Close the dropdown when clicking anywhere else on
+     * the page, and support Escape to close either the
+     * dropdown or the custom range modal.
+     */
+
+    document.addEventListener("click", (event) => {
+
+        if (dropdownEl && !dropdownEl.contains(event.target)) {
+
+            closeTimeRangeMenu();
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+
+        if (event.key !== "Escape") {
+
+            return;
+        }
+
+        closeTimeRangeMenu();
+
+        if (overlayEl && !overlayEl.hidden) {
+
+            closeCustomRangeModal();
+        }
+    });
+
+
+    if (refreshSelectEl) {
+
+        refreshSelectEl.value =
+            String(refreshIntervalMs);
+
+        refreshSelectEl.addEventListener("change", () => {
+
+            refreshIntervalMs =
+                Number(refreshSelectEl.value) ||
+                CPU_REFRESH_INTERVAL_DEFAULT;
+
+            if (!isPaused) {
+
+                clearCpuRefreshTimer();
+
+                cpuRefreshTimer =
+                    setInterval(
+                        loadCpuUsage,
+                        refreshIntervalMs
+                    );
+            }
+        });
+    }
+
+
+    if (livePauseBtn) {
+
+        livePauseBtn.addEventListener("click", () => {
+
+            if (isPaused) {
+
+                resumeLive();
+
+            } else {
+
+                pauseLive();
+            }
+        });
+    }
+
+
+    if (customCancelBtn) {
+
+        customCancelBtn.addEventListener("click", () => {
+
+            closeCustomRangeModal();
+        });
+    }
+
+
+    if (customApplyBtn && customFromInput && customToInput) {
+
+        customApplyBtn.addEventListener("click", () => {
+
+            applyCustomTimeRange(
+                customFromInput.value,
+                customToInput.value
+            );
+        });
+    }
+
+
+    updateTimeRangeDropdownUI();
+
+    updateLivePauseButtonUI();
 }
 
 
